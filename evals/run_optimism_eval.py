@@ -104,7 +104,7 @@ def report(results: list[Result], verbose: bool) -> None:
     for r in results:
         if r.errored:
             print(f"\n  ERROR  [{r.id}]  {r.description}")
-            print(f"           classify() returned None — model unreachable or bad output")
+            print("           classify() returned None — model unreachable or bad output")
         elif not r.passed:
             print(f"\n  FAIL   [{r.id}]  {r.description}")
             print(f"           expected={r.expected:.2f}  got={r.actual:.2f}  Δ={r.delta:.2f}")
