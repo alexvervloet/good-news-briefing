@@ -35,8 +35,8 @@
       "link": "https://example.com/eval/opt_kindness_proclamation",
       "is_reddit_article": false
     },
-    "optimism": 0.3,
-    "notes": "Pleasant intent but purely symbolic: no funding, no targets, no help actually delivered. Sits low because nothing concrete changes."
+    "optimism": 0.25,
+    "notes": "Pleasant intent but purely symbolic: no funding, no targets, no help actually delivered. Sits in the symbolic-recognition band (0.10-0.25) because nothing concrete changes."
   },
   {
     "id": "opt_nurses_contract",

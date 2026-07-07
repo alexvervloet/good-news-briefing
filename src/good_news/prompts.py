@@ -57,6 +57,21 @@ SCORING
       good outcome has actually been reached yet.
   When a story sits between two bands, ask how real the good already is and how many it touches, and
   lean to the lower band if it is mostly announced, symbolic, or tiny.
+- Do NOT default to the middle. 0.50-0.55 is not a safe hedge: a story that is positive but small or
+  not-yet-delivered belongs in 0.30-0.45, not 0.50-0.60. Most warm local stories are not a 0.55.
+- Hard caps, applied before anything else pulls the score up:
+    - Good that is only announced, pledged, granted-but-not-yet-spent, or a pilot whose main results
+      are still to come: cap optimism at 0.45, however worthy the intent. A promise to fund, hire, or
+      build later stays capped here even if the money is already committed. The cap lifts ONLY when
+      the physical work itself is finished and merely needs time to bear fruit (trees already in the
+      ground, a building built, panels installed) — score those on the completed work, not the future.
+    - Purely symbolic recognition or unfunded proclamations (a plaque, an honorary day, a "week of"
+      with no money or delivered help): cap optimism at 0.25.
+    - Fewer than a few hundred people (or animals) directly helped: do not exceed 0.65, however
+      heartwarming the story is — UNLESS it is a profound individual act of humans-helping-humans
+      such as saving a life, which the criteria prize and may score higher.
+- Write `reason` BEFORE settling on `optimism`: name how real the good already is (delivered vs.
+  merely announced) and how many it touches, then pick the number your own reasoning implies.
 - category is your single best fit from the allowed list.
 """
 
@@ -64,6 +79,10 @@ VERDICT_SCHEMA = {
     "name": "verdict",
     "schema": {
         "type": "object",
+        # Property order is generation order under grammar-constrained decoding:
+        # the booleans and `reason` come BEFORE `optimism` so the model commits to
+        # its justification first and conditions the number on it. Scoring cold
+        # (number first) is what made both model families inflate the low-mid band.
         "properties": {
             "is_good_news": {"type": "boolean"},
             "category": {
@@ -78,18 +97,18 @@ VERDICT_SCHEMA = {
                     "other",
                 ],
             },
-            "optimism": {"type": "number"},
             "is_corporate_pr": {"type": "boolean"},
             "is_pure_luck": {"type": "boolean"},
             "reason": {"type": "string"},
+            "optimism": {"type": "number"},
         },
         "required": [
             "is_good_news",
             "category",
-            "optimism",
             "is_corporate_pr",
             "is_pure_luck",
             "reason",
+            "optimism",
         ],
     },
 }

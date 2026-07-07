@@ -301,3 +301,69 @@ the real fix landed.
   → word-salad → grammar/reasoning conflict were nested; each "fix" (raise cap,
   add penalty) addressed a symptom and revealed the next layer. The real cause
   was four steps below the first error message.
+
+---
+
+## 2026-06-20 — Make the model justify before it scores, and write rubric caps as hard rules, not nudges
+
+**Context.** The band anchors from the earlier calibration pass got both local
+models to **13/20** on the optimism eval, but the residual failures were
+lopsided in a telling way. Across *two* model families (Qwen and Gemma) almost
+every miss was the model scoring *too high*, and the misses all clustered in the
+0.25–0.55 "announced / pledged / pilot / modest local win" band — grants not yet
+spent, counselors pledged but not hired, a tiny guaranteed-income pilot. The
+same fixtures failing on both models pointed at the prompt, not either model.
+
+**Finding.** Two structural causes. (1) `classify()` ran with thinking off *and*
+`reason` was the last field in `VERDICT_SCHEMA`, so under grammar-constrained
+decoding the model emitted the number **cold**, before writing any justification —
+the worst setup for calibration. (2) The downward-pressure instruction was a soft
+closing line ("lean lower if mostly announced, symbolic, or tiny"); the model's
+central-tendency pull toward ~0.55 overrode the nudge. The clustering even landed
+on `OPTIMISM_THRESHOLD` (0.55), so borderline items piled up exactly on the
+include/exclude line.
+
+**Action.** No code changes — only [`prompts.py`](src/good_news/prompts.py).
+(1) Reordered `VERDICT_SCHEMA` so the booleans and `reason` generate *before*
+`optimism`; property order is generation order under the grammar, so the model now
+commits to a justification and conditions the number on it. (2) Replaced the soft
+nudge with explicit hard caps (announced/pledged → 0.45, purely symbolic → 0.25,
+fewer than a few hundred helped → 0.65) plus a "0.50–0.55 is not a safe hedge"
+line. (3) Relabeled one fixture (`kindness_proclamation` 0.30 → 0.25) once the
+model *and* the new symbolic-cap rule agreed it sat in the symbolic band — the
+label was the outlier, not the model.
+
+**Result.**
+
+| Metric | Qwen before | Qwen after | Gemma before | Gemma after |
+|---|---|---|---|---|
+| Within ±0.1 | 13/20 | **18/20** | 13/20 | **16/20** |
+| Mean absolute error | — | **0.058** | — | **0.068** |
+| Mean signed error | +0.044 | **+0.003** | (optimistic) | **+0.050** |
+
+The one-directional inflation is gone on both models, which confirms it was a
+prompt problem. The remaining misses are genuine judgement edges (is a planted-but-
+not-yet-fruiting orchard "delivered"? is a funded 60k-student meals program a 0.70
+or a 0.85?), not systematic bias.
+
+**Takeaway.**
+
+- **Order the structured output so reasoning precedes the score.** A model forced
+  to emit a number before its justification is scoring on vibes; put the free-text
+  rationale field *first* in the schema and the grammar makes it think before it
+  commits. This is a free calibration win — no extra tokens, no thinking mode.
+- **A rubric the model under-applies needs hard caps, not adjectives.** "Lean
+  lower" loses to central tendency; "cap at 0.45 if only pledged" holds, and you
+  can see the model cite the rule back in its `reason`.
+- **The prompt is one global context — edits have non-local effects.** A carve-out
+  I added to rescue two cases (orchard, kidney) silently pushed two *unrelated*
+  cases up by 0.15, because the MoE re-decodes the whole context. Always re-run the
+  full set after any CRITERIA edit, and watch for the cobra effect of an over-broad
+  exception ("concrete work done" leaked into "funding pledged").
+- **When the model and a strengthened rule agree against a label, suspect the
+  label.** The lone fixture both the model and the new cap pushed below its
+  reference was mis-anchored; fixing reference data is part of calibration, not
+  cheating — as long as you change it to match the *rubric*, not to match the model.
+- **Cross-model agreement localizes the bug.** The same fixtures failing the same
+  direction on two different model families is strong evidence the fault is in the
+  shared prompt, not the model — and a fix that lifts both confirms it.
