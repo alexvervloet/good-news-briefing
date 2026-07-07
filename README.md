@@ -29,9 +29,14 @@ classification and writing all happen on your own GPU.
 
 ## Example output
 
-A real briefing, exactly as generated on 2026-07-06 — grouped by theme, each
-story a calm one-liner over a real (code-spliced, never model-written) link.
-This is the unedited output of one scheduled run:
+Each evening the pipeline emails a briefing like this — real, unedited output,
+shown as the HTML email actually renders it:
+
+![A good-news briefing rendered as the HTML email](assets/briefing-email.png)
+
+And here is the raw Markdown a run writes to disk (a different evening), grouped
+by theme, each story a calm one-liner over a real (code-spliced, never
+model-written) link:
 
 ```markdown
 # Good News — 2026-07-06
