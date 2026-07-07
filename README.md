@@ -8,6 +8,41 @@ warm Markdown "good news" briefing — optionally emailing it to you and a frien
 Nothing leaves your network except the RSS fetches and the outgoing email: the
 classification and writing all happen on your own GPU.
 
+## Example output
+
+A real briefing, exactly as generated on 2026-07-06 — grouped by theme, each
+story a calm one-liner over a real (code-spliced, never model-written) link.
+This is the unedited output of one scheduled run:
+
+```markdown
+# Good News — 2026-07-06
+
+The day has softened into evening; here are five quiet reminders that care still moves through the world.
+
+**Preserving memory**
+
+A grassroots network has safeguarded half a million photographs and documents in distributed servers, keeping Palestinian cultural memory alive despite ongoing pressures to erase it.
+https://www.wired.com/story/how-palestinians-are-building-a-digital-archive-that-cant-be-erased/
+
+**Neighbors stepping in**
+
+When a boy with cerebral palsy was injured at a local park, five passing teenagers immediately coordinated rescue efforts and stayed with the family until professional help arrived.
+https://www.theguardian.com/lifeandstyle/2026/jul/06/the-kindness-of-strangers-my-son-was-unconscious-and-i-frantically-called-out-for-help-then-five-teenagers-came-running
+
+An eleven-year-old jumped into a residential pool without hesitation and pulled a struggling adult to safety, proving that quick thinking can change an entire family’s trajectory.
+https://www.actionnews5.com/2026/07/05/11-year-old-rescues-man-nearly-drowning-apartment-complex-pool/
+
+**Protecting habitat and nurturing talent**
+
+Targeted anti-poaching patrols have gradually increased leopard density in Benin’s Pendjari National Park, offering a measured victory for one of the region’s most vulnerable wild cats.
+https://news.mongabay.com/2026/07/endangered-west-african-leopards-show-signs-of-recovery-despite-odds-its-a-win/
+
+A national performing arts initiative is now funding stage time for emerging dancers between sixteen and twenty-four, giving young creators reliable access to professional development and public performance.
+https://www.positive.news/lifestyle/arts/the-national-dance-company-opening-doors-for-young-performers/
+```
+
+The pipeline has run nightly via `cron` since 2026-06-19 (see [Scheduling](#scheduling-optional)).
+
 ## How it works
 
 1. **Fetch** — pull a list of RSS feeds (`feedparser`).
@@ -33,8 +68,8 @@ classification and writing all happen on your own GPU.
 ## Setup
 
 ```bash
-git clone <your-repo-url>
-cd good-news-feed
+git clone https://github.com/alexvervloet/good-news-briefing.git
+cd good-news-briefing
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env        # then edit .env (see below)
@@ -177,7 +212,7 @@ Run it automatically in the evening with `cron` or `launchd` on macOS, e.g. a
 crontab line for 6pm daily:
 
 ```cron
-0 18 * * * cd /path/to/good-news-feed && .venv/bin/python good_news_briefing.py >> ~/good-news/cron.log 2>&1
+0 18 * * * cd /path/to/good-news-briefing && .venv/bin/python good_news_briefing.py >> ~/good-news/cron.log 2>&1
 ```
 
 ## Privacy
