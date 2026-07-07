@@ -1,5 +1,7 @@
 # Good News Briefing
 
+[![CI](https://github.com/alexvervloet/good-news-briefing/actions/workflows/ci.yml/badge.svg)](https://github.com/alexvervloet/good-news-briefing/actions/workflows/ci.yml)
+
 A small, self-hosted pipeline that pulls a set of RSS feeds, uses a **local LLM**
 (served by [LM Studio](https://lmstudio.ai/)) to judge each story against a
 tunable editorial point of view, collapses duplicate coverage, and composes a
@@ -7,6 +9,23 @@ warm Markdown "good news" briefing — optionally emailing it to you and a frien
 
 Nothing leaves your network except the RSS fetches and the outgoing email: the
 classification and writing all happen on your own GPU.
+
+> **The engineering, in three findings.** This project is mostly an exercise in
+> making a small local model behave. The non-obvious lessons, each with the
+> change and the measured effect, live in **[`LEARNINGS.md`](LEARNINGS.md)**:
+> - **The model hallucinates plausible-but-dead URLs**, so it never sees one —
+>   each item carries an opaque `@@N@@` marker it echoes, and real links are
+>   spliced back in by code after generation.
+> - **Structured-output field order is generation order.** Putting the free-text
+>   `reason` *before* the `optimism` number in the JSON schema makes the model
+>   justify before it scores — a free calibration win that erased a
+>   one-directional scoring bias across two model families.
+> - **A rubric the model under-applies needs hard caps, not adjectives.** "Lean
+>   lower" lost to central tendency; "cap at 0.45 if only pledged" held.
+>
+> Both claims are checked by evals against a live model — latest real transcripts
+> (classifier 23/25, optimism 19/20 within ±0.1) are committed under
+> [`evals/results/`](evals/results/).
 
 ## Example output
 
