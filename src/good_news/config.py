@@ -77,7 +77,7 @@ CLASSIFY_MAX_TOKENS = 2000
 # frequency_penalty nudges the logits off the repeated token and breaks the
 # loop. It adjusts logits *before* the argmax, so scoring stays deterministic.
 # 0.0 disables it; raise toward 1.0 if a model still loops.
-CLASSIFY_FREQUENCY_PENALTY = 0.6
+CLASSIFY_FREQUENCY_PENALTY = 0
 # Thinking is always disabled for the digest: it's creative writing, not analysis,
 # so reasoning tokens waste budget without improving output.
 DIGEST_THINKING = False
