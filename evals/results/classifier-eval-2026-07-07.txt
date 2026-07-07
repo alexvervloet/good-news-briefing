@@ -1,0 +1,117 @@
+Running 25 eval cases against the live model...
+
+  [ 1/25] env_1                           pass
+  [ 2/25] env_2                           pass
+  [ 3/25] com_1                           pass
+  [ 4/25] com_2                           pass
+  [ 5/25] anti_1                          pass
+  [ 6/25] anti_2                          pass
+  [ 7/25] anti_3                          pass
+  [ 8/25] tech_1                          pass
+  [ 9/25] tech_2                          pass
+  [10/25] sci_1                           pass
+  [11/25] sci_2                           pass
+  [12/25] pol_1                           FAIL (category)
+  [13/25] pol_2                           FAIL (category)
+  [14/25] excl_profit                     pass
+  [15/25] excl_stock                      pass
+  [16/25] excl_luck_lottery               pass
+  [17/25] excl_greenwash                  pass
+  [18/25] excl_ceo_charity                pass
+  [19/25] excl_neutral                    pass
+  [20/25] edge_luck_with_kindness         pass
+  [21/25] edge_luck_no_kindness           pass
+  [22/25] edge_both_sides                 pass
+  [23/25] edge_nurses_strike              pass
+  [24/25] edge_greenwash_with_expansion   pass
+  [25/25] edge_open_source_privacy        pass
+
+==============================================================
+  CLASSIFIER EVAL   23/25 passed
+==============================================================
+
+  pass   [env_1]  volunteers reforest degraded land
+           reason: "The story describes a concrete environmental restoration effort (planting 50,000 trees on eroded land) driven by community volunteers. The work is already completed ("
+
+  pass   [env_2]  EU bans disposable vapes to cut plastic waste
+           reason: "The EU regulation bans single-use vapes to reduce plastic and battery waste, a concrete environmental win that directly addresses pollution and toxic waste. The policy is already passed (delivered) and will impact hundreds of millions of discarded units annually, benefiting communities and the environment."
+
+  pass   [com_1]  mutual aid network delivers meals to housebound elders
+           reason: "This is a genuine example of mutual aid and community solidarity, with 200+ elderly residents receiving hot meals daily since 2020. The good is real, delivered, and sustained by volunteers and donations. It touches hundreds of people directly and provides consistent support to a vulnerable population."
+
+  pass   [com_2]  community fundraises to rebuild flood victim's home
+           reason: "The story describes neighbors and strangers coming together to raise $180,000 to help a family rebuild after losing everything in a flood. This is a clear example of mutual aid and community solidarity, fitting the 'humans helping humans' criteria. The good is real and delivered (funds raised), though it primarily benefits one family directly. While heartwarming, the scale is limited to a single household's recovery rather than a broad systemic change or large-scale public benefit."
+
+  pass   [anti_1]  Amazon warehouse workers vote to unionize
+           reason: "Workers at an Amazon warehouse have successfully unionized after a hard-fought vote, marking a significant win for labor rights and worker protections against corporate power. This is a concrete, delivered victory that directly benefits hundreds of workers by giving them collective bargaining power to address unsafe conditions and unfair quotas."
+
+  pass   [anti_2]  FTC blocks telecom merger on consumer harm grounds
+           reason: "The FTC blocked a $40 billion merger between two major cable companies, preventing reduced competition and potential harm to consumers in 18 states. This is a concrete regulatory win that protects consumers from higher prices and fewer options, representing genuine anti-corporate accountability with substantial impact on millions of people."
+
+  pass   [anti_3]  restaurant chain ordered to repay stolen wages
+           reason: "A federal court ordered a national fast-food chain to repay $4.2 million in stolen wages to 3,800 workers after a whistleblower exposed systematic underpayment and deletion of overtime hours. This is a concrete, delivered win for workers, representing accountability for corporate wrongdoing and restoration of earned compensation."
+
+  pass   [tech_1]  EU court orders Meta to stop behavioral ad targeting
+           reason: "The EU court ruling is a concrete win for user privacy and data rights against a major tech corporation. It directly impacts 400 million users by forcing Meta to stop illegal data harvesting and delete illegally collected profiles. This represents significant progress in holding powerful tech companies accountable under existing regulations (GDPR). The good is already delivered via the court order, though implementation may take time. The scale is large (hundreds of millions affected), and it's a substantive legal victory for digital rights."
+
+  pass   [tech_2]  right-to-repair law passes in three states
+           reason: "The story describes concrete legislative wins for right-to-repair in three states, directly empowering consumers and independent repair shops against manufacturer monopolies. This is a substantive, delivered policy change that shifts power away from corporate control toward users and workers in the repair sector."
+
+  pass   [sci_1]  malaria vaccine 82% efficacy in Phase 3 trial
+           reason: "The R21 malaria vaccine has demonstrated 82% efficacy in a Phase 3 trial with 4,800 children across four African countries. This is a proven, large-scale scientific breakthrough that directly addresses a major global health threat and is positioned for rapid rollout to save lives."
+
+  pass   [sci_2]  Alzheimer's drug slows cognitive decline in large trial
+           reason: "The drug has received FDA full approval and Medicare coverage is expanding access, meaning the benefit is already delivered to patients rather than just being a trial result or announcement. The 35% slowing of cognitive decline in a large Phase 3 trial represents a significant medical advancement for Alzheimer's patients."
+
+  FAIL   [pol_1]  city passes strongest-ever tenant protections
+           category: expected='politics_social'  got='community_helping'
+           reason: "The city council passed significant tenant protections that will directly benefit 140,000 renters by expanding rent stabilization, banning no-cause evictions, and requiring longer notice for rent increases. This is a concrete, delivered policy change with substantial impact on housing security for a large number of people."
+
+  FAIL   [pol_2]  federal court strikes down discriminatory voter ID law
+           category: expected='politics_social'  got='community_helping'
+           reason: "The court ruling restores voting rights for 250,000 voters by striking down a discriminatory voter ID law. This is a concrete, delivered win that directly benefits a large community of people, aligning with progressive values of civil rights and democratic participation."
+
+  pass   [excl_profit]  exclude: corporate profit record
+           reason: "This story reports record corporate profits for Apple, which is good for the company and its executives but does not represent genuine progress for ordinary people, workers, or the planet. It falls under 'News that is good for a company, market, or executive but neutral-to-bad for ordinary people or workers'."
+
+  pass   [excl_stock]  exclude: stock market milestone
+           reason: "This is a market milestone driven by corporate tech earnings, which benefits investors and executives but does not represent tangible progress for ordinary people, workers, or the planet. It aligns with excluded criteria: 'News that is good for a company, market, or executive but neutral-to-bad for ordinary people or workers.'"
+
+  pass   [excl_luck_lottery]  exclude: lottery win, no human kindness
+           reason: "This is a pure luck event (lottery win) with no human kindness or progressive social good at its core. The winner plans to buy a boat, which does not constitute meaningful community benefit or alignment with the editorial criteria for good news."
+
+  pass   [excl_greenwash]  exclude: oil company greenwashing pledge
+           reason: "This is a corporate announcement from BP (a major fossil fuel company) combining a net-zero pledge with plans to increase oil and gas production. This is classic greenwashing/corporate PR that does not represent genuine progress for the planet or people. The increased production directly contradicts climate goals."
+
+  pass   [excl_ceo_charity]  exclude: CEO charity donation after PR scandal
+           reason: "This is a corporate PR move by Meta's CEO to improve the company's public image following negative congressional testimony. The pledge itself is not yet delivered and serves primarily as a branding exercise rather than genuine progress for housing or workers."
+
+  pass   [excl_neutral]  exclude: neutral policy announcement, no concrete outcome
+           reason: "The story describes an announcement of a task force to study transit options over 18 months with no concrete action or deliverable yet. It is purely symbolic/announced with no real good delivered."
+
+  pass   [edge_luck_with_kindness]  edge: found money returned to owner — luck, but human kindness at the core
+           reason: "The story centers on a day laborer choosing to return $120,000 he found, despite his own financial hardship. This is a clear example of 'humans helping humans' and personal integrity, which aligns with the editorial filter's values. The good is real and delivered (the money was returned), but it primarily impacts two individuals (the finder and the owner). While heartwarming, the scale of direct benefit to the broader community or systemic change is limited."
+
+  pass   [edge_luck_no_kindness]  edge: lost dog walks home — heartwarming but pure luck, no human kindness driving it
+           reason: "This is a story about an animal returning home through its own instinct and endurance, not driven by human kindness or organized help. It falls under pure luck/freak good fortune with no core of humans helping humans."
+
+  pass   [edge_both_sides]  edge: 'both sides' framing of restoring civil rights
+           reason: "The story describes a debate over restoring voting rights for formerly incarcerated individuals. While the underlying issue (restoring voting rights) aligns with progressive values of civil rights and fairness, the news item itself reports on a clash and disagreement without indicating that any positive outcome has been reached or is imminent. The criteria explicitly exclude 'Debates or discussions of disagreement where a good outcome hasn't actually been reached, or isn’t at least close to being reached.' Therefore, this does not count as good news."
+
+  pass   [edge_nurses_strike]  edge: workers win long strike with concrete gains
+           reason: "The nurses' strike resulted in a concrete, delivered contract with binding staffing ratios and significant pay increases for over 4,000 workers. This is a substantial win for labor rights and patient safety, directly improving conditions for healthcare workers and potentially patients."
+
+  pass   [edge_greenwash_with_expansion]  edge: oil company touts tiny emissions drop while expanding drilling
+           reason: "This is a corporate press release from Shell highlighting a minor emissions reduction while simultaneously announcing new fossil fuel expansion projects. The 'good news' framing is clearly PR-driven greenwashing by an oil major, and the core action (new drilling) contradicts climate progress. No genuine human or environmental benefit is delivered; it's corporate self-congratulation."
+
+  pass   [edge_open_source_privacy]  edge: nonprofit releases open-source privacy tool
+           reason: "Mozilla open-sourcing a privacy-preserving ad measurement tool is a genuine win for user privacy and pushes back against surveillance capitalism. It allows independent verification that ads can be measured without tracking individuals, which aligns with progressive tech values like decentralization and anti-surveillance. The good is concrete (code released under an open license) and benefits all users who value privacy, though the scale of impact depends on adoption by other platforms."
+
+────────────────────────────────────────
+  Per-field accuracy:
+
+    category                14/16  ████████░░  88%
+    is_corporate_pr          3/3  ██████████  100%
+    is_good_news            25/25  ██████████  100%
+    is_pure_luck             2/2  ██████████  100%
+

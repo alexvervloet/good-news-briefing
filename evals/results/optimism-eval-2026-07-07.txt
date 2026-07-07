@@ -1,0 +1,110 @@
+Running 20 optimism eval cases against the live model
+(pass = model optimism within ±0.1 of the reference score)
+
+  [ 1/20] opt_river_cleanup             pass   expected=0.50  got=0.55  Δ=0.05
+  [ 2/20] opt_malaria_rollout           pass   expected=0.95  got=0.85  Δ=0.10
+  [ 3/20] opt_kindness_proclamation     pass   expected=0.25  got=0.15  Δ=0.10
+  [ 4/20] opt_nurses_contract           pass   expected=0.80  got=0.80  Δ=0.00
+  [ 5/20] opt_orchard                   pass   expected=0.55  got=0.55  Δ=0.00
+  [ 6/20] opt_library_petition          pass   expected=0.20  got=0.25  Δ=0.05
+  [ 7/20] opt_free_meals                pass   expected=0.70  got=0.75  Δ=0.05
+  [ 8/20] opt_volunteer_award           pass   expected=0.25  got=0.15  Δ=0.10
+  [ 9/20] opt_clean_water_well          pass   expected=0.85  got=0.75  Δ=0.10
+  [10/20] opt_microgrant_pilot          FAIL   expected=0.40  got=0.30  Δ=0.10
+  [11/20] opt_stranger_kidney           pass   expected=0.75  got=0.85  Δ=0.10
+  [12/20] opt_sanctuary_expand          pass   expected=0.50  got=0.60  Δ=0.10
+  [13/20] opt_guinea_worm               pass   expected=0.90  got=0.92  Δ=0.02
+  [14/20] opt_garden_grant              pass   expected=0.35  got=0.35  Δ=0.00
+  [15/20] opt_coffee_union              pass   expected=0.55  got=0.55  Δ=0.00
+  [16/20] opt_solar_school              pass   expected=0.65  got=0.60  Δ=0.05
+  [17/20] opt_school_counselor_pledge   pass   expected=0.40  got=0.40  Δ=0.00
+  [18/20] opt_marriage_ruling           pass   expected=0.90  got=0.95  Δ=0.05
+  [19/20] opt_food_bank_expand          pass   expected=0.60  got=0.60  Δ=0.00
+  [20/20] opt_ubi_pilot                 pass   expected=0.45  got=0.45  Δ=0.00
+
+==============================================================
+  OPTIMISM EVAL   19/20 within ±0.1
+==============================================================
+  mean abs error: 0.049     mean signed error: -0.007
+  (model runs pessimistic relative to the reference)
+
+  pass   [opt_river_cleanup]  volunteers remove trash from a river over one weekend
+           expected=0.50  got=0.55  Δ=0.05
+           reason: "The story describes a concrete act of community organizing and mutual aid where 200 volunteers directly cleaned up pollution from a river. The good is delivered (trash removed) and tangible, though the scale is local/modest (one stretch of river, two tons). It fits 'community_helping' as it's organized generosity and solidarity. No corporate PR or pure luck involved."
+
+  pass   [opt_malaria_rollout]  proven malaria vaccine begins mass rollout across four countries
+           expected=0.95  got=0.85  Δ=0.10
+           reason: "The R21 malaria vaccine has been delivered to 12 million children across four countries, with health ministries reporting an early 40% drop in childhood malaria deaths. This is a concrete, substantial win already achieved for a large number of people (millions), directly improving public health and saving lives."
+
+  pass   [opt_kindness_proclamation]  mayor proclaims a symbolic 'week of kindness' with no funding
+           expected=0.25  got=0.15  Δ=0.10
+           reason: "The story is a symbolic proclamation with no funding or concrete actions delivered. It falls under purely symbolic recognition."
+
+  pass   [opt_nurses_contract]  workers win a long strike with binding, broad gains
+           expected=0.80  got=0.80  Δ=0.00
+           reason: "The story describes a concrete win for workers (nurses) with binding gains on staffing ratios and pay. This is a clear example of anti-corporate accountability and worker protections being achieved through collective action. The good is already delivered (ratified contract), substantial in scale (4,000 nurses), and has significant implications for patient care and worker well-being."
+
+  pass   [opt_orchard]  volunteers plant a community orchard in a food desert
+           expected=0.55  got=0.55  Δ=0.00
+           reason: "The story describes a concrete act of community organizing and mutual aid where volunteers planted an orchard to address food insecurity in a food desert. The good is real (trees are planted) but the primary benefit (free fruit) is not yet delivered, as production begins in 3-4 years. It touches a specific neighborhood/community. This fits the 'humans helping humans' and community progress criteria."
+
+  pass   [opt_library_petition]  residents launch a petition to save a library, no outcome yet
+           expected=0.20  got=0.25  Δ=0.05
+           reason: "The story describes residents organizing to save their local library from budget cuts. While this is a positive act of community engagement and advocacy (humans helping humans/community rallying), the outcome has not been achieved yet. The petition is ongoing, no vote has occurred, and there is no guarantee the library will be saved. It represents an effort toward a good goal but lacks a concrete, delivered win at this stage."
+
+  pass   [opt_free_meals]  school district makes meals free for all students
+           expected=0.70  got=0.75  Δ=0.05
+           reason: "The school district is providing free meals to all 60,000 students, which removes means-testing and ensures that no child goes hungry. This is a significant positive outcome for the community, as it directly addresses food insecurity and reduces stigma. The program starts next term, indicating that the good is already decided upon and will be delivered soon."
+
+  pass   [opt_volunteer_award]  town gives an honorary award to a longtime volunteer
+           expected=0.25  got=0.15  Δ=0.10
+           reason: "The story is about an honorary day for a volunteer, which is purely symbolic recognition with no concrete change or delivered good. It does not meet the threshold for genuine progress or measurable improvement."
+
+  pass   [opt_clean_water_well]  NGO and villagers build wells bringing clean water to a region
+           expected=0.85  got=0.75  Δ=0.10
+           reason: "The story describes a concrete, delivered win: 14 boreholes completed and operational, providing reliable clean water to 5,000 people. The positive impact is already measurable (child illness halved). This represents genuine progress in public health and community well-being, achieved through partnership between a charity and local residents."
+
+  FAIL   [opt_microgrant_pilot]  nonprofit announces a small micro-grant pilot, grants not yet made
+           expected=0.40  got=0.30  Δ=0.10
+           reason: "The story describes a pilot program with grants that have not yet been awarded or delivered. The good is merely announced and promised for the future, with no concrete results achieved yet. It also affects fewer than a few hundred people (30 businesses). According to the guidelines, this falls into the 'announced/pledged' category which caps optimism at 0.45, but since it's a pilot with uncertain outcomes and limited reach, it doesn't meet the threshold for genuine good news in this context."
+
+  pass   [opt_stranger_kidney]  stranger donates a kidney to a child they had never met
+           expected=0.75  got=0.85  Δ=0.10
+           reason: "A stranger donated a kidney to a child after seeing her mother's plea online. This is a profound act of human kindness and mutual aid that directly saved or significantly improved the life of a child and relieved immense stress for the family. The good is already delivered (surgery completed, child recovering). While it touches one individual primarily, the criteria explicitly state that 'profound individual acts of humans-helping-humans such as saving a life... may score higher' than the usual cap for small numbers. It fits the 'community_helping' or 'humans helping humans' frame perfectly."
+
+  pass   [opt_sanctuary_expand]  community funds an animal sanctuary expansion
+           expected=0.50  got=0.60  Δ=0.10
+           reason: "The story describes a community-driven effort where local supporters raised funds to expand an animal sanctuary's capacity. This is a clear example of 'humans helping humans' (or animals) through mutual aid and organized generosity. The good is real and delivered: the field was bought and shelters built, directly enabling 50 more rescues. While the scale is modest (a few hundred people helped/donated, 50 animals), it fits the criteria for community_helping. The optimism score should reflect that the work is completed but on a small-to-moderate local scale."
+
+  pass   [opt_guinea_worm]  decades-long eradication campaign nears elimination of a disease
+           expected=0.90  got=0.92  Δ=0.02
+           reason: "The story describes a massive, proven public health victory achieved through decades of community-led efforts and clean-water education. The reduction from 3.5 million cases to just 11 is a concrete, delivered good that has saved countless lives and improved well-being for millions globally over time. It fits the highest tier of optimism due to its scale, longevity, and tangible impact on human health."
+
+  pass   [opt_garden_grant]  city awards a grant to fund a future community garden
+           expected=0.35  got=0.35  Δ=0.00
+           reason: "The grant is announced but construction has not yet begun and the garden will not be built until next spring. The good is merely pledged/granted-but-not-yet-spent on physical work, so it falls under the hard cap of 0.45 for optimism. However, since the story is about a community project that hasn't delivered any tangible benefit yet (no plots assigned, no garden built), and the prompt says to lean toward excluding when genuinely unsure, I will set is_good_news to false because the good has not been realized."
+
+  pass   [opt_coffee_union]  workers at a single small coffee shop vote to unionize
+           expected=0.55  got=0.55  Δ=0.00
+           reason: "Workers at an independent coffee shop voted to unionize, citing scheduling instability and low pay. This is a genuine win for workers' rights and fair treatment in the service sector. The scale is small (17 employees), but it represents a concrete step toward better working conditions through collective action."
+
+  pass   [opt_solar_school]  rural school gains solar power, enabling evening study
+           expected=0.65  got=0.60  Δ=0.05
+           reason: "The solar installation is a concrete, delivered improvement that directly benefits 300 students by enabling evening study and computer use. The good is real and tangible, with attendance already strong. However, the scale (300 people) caps optimism at 0.65 per guidelines. The donor-funded nature suggests community/philanthropic effort rather than corporate PR or pure luck."
+
+  pass   [opt_school_counselor_pledge]  foundation pledges counselors but hiring hasn't started
+           expected=0.40  got=0.40  Δ=0.00
+           reason: "The story describes a private foundation pledging to fund mental-health counselors in 10 under-resourced schools. While the intent is positive and will help approximately 6,000 students, the funding is merely announced and hiring has not yet begun. The good is not yet delivered; it is a pledge for future action. According to the hard caps, announcements or pledges that are not yet spent or implemented must be capped at an optimism score of 0.45."
+
+  pass   [opt_marriage_ruling]  top court legalizes same-sex marriage nationwide
+           expected=0.90  got=0.95  Δ=0.05
+           reason: "The story describes a landmark legal victory that extends marriage rights and protections to millions of people nationwide. This is a concrete, substantial win for civil rights and social equality, delivered by the highest court. The good is real, large-scale, and life-changing for many."
+
+  pass   [opt_food_bank_expand]  community food bank opens a second site
+           expected=0.60  got=0.60  Δ=0.00
+           reason: "The story describes a volunteer-run food bank expanding its reach to serve 150 additional families. This is a concrete example of mutual aid and community support that has already been delivered (the second location opened). The scale is modest but meaningful for the specific communities served."
+
+  pass   [opt_ubi_pilot]  small guaranteed-income pilot shows early, unproven promise
+           expected=0.45  got=0.45  Δ=0.00
+           reason: "The pilot program provides tangible financial support to 25 low-income families, resulting in improved housing stability and employment. While the sample size is small (capped at 0.65), the results are already delivered for these participants, showing genuine progress in poverty reduction."
+
