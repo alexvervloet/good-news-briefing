@@ -41,7 +41,7 @@ def dedupe(items: list[Article], min_keep: int = 1) -> list[Article]:
     if len(items) < 2:
         return items
     try:
-        vecs = embed([it.title for it in items])
+        vecs = embed([f"{it.title} {it.reason or ''}".strip() for it in items])
     except Exception as e:
         print(f"  ! embeddings unavailable, skipping dedupe: {e}", file=sys.stderr)
         return items
