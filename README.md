@@ -194,9 +194,10 @@ python evals/run_optimism_eval.py             # summary — failures only
 python evals/run_optimism_eval.py --verbose   # show all cases including passes
 ```
 
-An agentic eval: each article in `evals/optimism_fixtures.json` carries a
-reference `optimism` score (0.0–1.0) assigned by an agent reading it against
-`CRITERIA`, not a hard ground-truth label. The runner scores the model's
+A reference-graded eval: each article in `evals/optimism_fixtures.json` carries
+a reference `optimism` score (0.0–1.0) — drafted by an LLM reading it against
+`CRITERIA`, then reviewed and adjusted by hand — not a hard ground-truth label.
+The runner scores the model's
 `optimism` against that reference and passes a case when they agree within
 ±0.1, also reporting mean absolute error and whether the model skews
 optimistic or pessimistic. Exit code is non-zero if any case falls outside the

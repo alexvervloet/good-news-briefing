@@ -30,8 +30,9 @@ PR vs. genuine, luck vs. kindness) is perfect on this set.
 
 ## Optimism — 19/20 within ±0.1
 
-An LLM-graded eval: each fixture carries a reference optimism score (0–1), and a
-case passes when the model lands within ±0.1 of it.
+A reference-graded eval: each fixture carries a reference optimism score (0–1) —
+LLM-drafted against `CRITERIA`, then reviewed and adjusted by hand — and a case
+passes when the model lands within ±0.1 of it.
 
 - **Within tolerance:** 19/20
 - **Mean absolute error:** 0.049

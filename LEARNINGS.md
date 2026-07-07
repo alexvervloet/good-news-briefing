@@ -180,10 +180,11 @@ sees the file."
 **Context.** The classifier ([`src/good_news/llm.py`](src/good_news/llm.py))
 asks a local model to score each story's `optimism` from 0.0 to 1.0. Unit tests
 mock the model, so they verify plumbing but never whether the *judgement* is any
-good. To probe that, I built an agentic eval
-([`evals/run_optimism_eval.py`](evals/run_optimism_eval.py)): I hand-labeled 20
-articles with reference optimism scores spread across the full range, then had
-the eval pass a case only when the model landed within ±0.1 of my score.
+good. To probe that, I built a reference-graded eval
+([`evals/run_optimism_eval.py`](evals/run_optimism_eval.py)): 20 articles with
+reference optimism scores spread across the full range — drafted by an LLM
+reading each against `CRITERIA`, then reviewed and corrected by hand — with the
+eval passing a case only when the model landed within ±0.1 of the reference.
 
 **Finding.** The model scored **6/20**, with a mean absolute error of **0.242**
 and a mean *signed* error of **+0.222** — consistently optimistic. The real

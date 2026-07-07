@@ -1,12 +1,13 @@
 #!/usr/bin/env python
 """
-Optimism eval: scores the model's `optimism` against agent-labeled reference scores.
+Optimism eval: scores the model's `optimism` against LLM-drafted, hand-reviewed
+reference scores.
 
-This is an "agentic" eval — the reference optimism scores in optimism_fixtures.json
-were assigned by an agent reading each article against CRITERIA, not derived from any
-ground-truth label. It measures whether the model's *sense of how uplifting and
-substantive* a story is tracks a considered human-ish judgement, which the pass/fail
-classifier eval (run_eval.py) deliberately doesn't probe.
+The reference optimism scores in optimism_fixtures.json were drafted by an LLM
+reading each article against CRITERIA and then reviewed and adjusted by hand, not
+derived from any ground-truth label. It measures whether the model's *sense of how
+uplifting and substantive* a story is tracks a considered editorial judgement, which
+the pass/fail classifier eval (run_eval.py) deliberately doesn't probe.
 
 Both scores live on the model's native 0.0-1.0 optimism scale. A case PASSES when the
 model's optimism is within TOLERANCE of the reference score.
