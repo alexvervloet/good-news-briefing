@@ -368,3 +368,67 @@ or a 0.85?), not systematic bias.
 - **Cross-model agreement localizes the bug.** The same fixtures failing the same
   direction on two different model families is strong evidence the fault is in the
   shared prompt, not the model — and a fix that lifts both confirms it.
+
+---
+
+## 2026-07-10 — A presence check can't catch a permutation: the marker guardrail passed while every link pointed at the wrong story
+
+**Context.** The digest tags each item with an opaque `@@N@@` marker that the
+model copies onto the link line, and [`restore_links()`](src/good_news/guardrails.py)
+swaps each marker for the real URL afterward (see the earlier "keep data out of
+the model's hands" entry). That step already audits the raw output — literal
+`http`, reused or missing marker numbers, leftover markers. I trusted it to catch
+a bad mapping.
+
+**Finding.** One `temperature=0.7` run produced a briefing where six of nine
+stories carried the *wrong* link: the cities-cooling story linked to a John Deere
+right-to-repair article, the John Deere story to an urban-climate article, and so
+on — the markers had been **permuted** across sentences. The guardrail waved it
+through, and the reason is structural: it only checks that the multiset of marker
+numbers equals `{1..N}`. A permutation uses each number exactly once, so
+`found == expected` holds — presence is intact, *assignment* is scrambled, and a
+presence check is blind to assignment. The same run also wrote its markers inline
+at the end of each sentence instead of on their own line, which (a) broke
+`_space_items`, whose blank-line regex was anchored to URLs at line start, so the
+items ran together, and (b) was the visible symptom that a run had gone sloppy —
+the format drift and the mis-mapping travelled together.
+
+**Action.** Three changes. (1) `_space_items` now inserts a blank line after
+*every* restored URL wherever it landed — each URL is an item boundary — instead
+of only line-leading ones, so inline markers no longer produce run-ons. (2) Added
+`markers_each_on_own_line()` and made [`write_digest()`](src/good_news/llm.py)
+**regenerate once at `temperature=0`** when the first draft fails it, adopting the
+retry only if it comes back clean and complete (a worse re-roll never replaces a
+usable first draft; a truncated reply skips the retry, since that's a token-cap
+problem, not a formatting one). (3) Pulled the hardcoded `0.7` into
+`DIGEST_TEMPERATURE = 0.3` — the digest is a format-faithful task as much as a
+creative one, and the high temperature is what let the model wander off-format.
+
+**Result.** The spacing bug is fixed and covered by a regression test; six new
+tests exercise the fidelity check and all three retry paths (retries-and-adopts,
+no-retry-when-clean, keeps-first-when-retry-still-bad). The retry keys off the
+*format* deviation, which strongly co-occurred with the mis-mapping here — an
+honest limitation remains: a run that formats markers perfectly yet still permutes
+them would slip through. Fully closing that would need structured (non-free-form)
+digest output or a semantic sentence↔item check; the temperature drop is the
+bigger lever against it.
+
+**Takeaway.**
+
+- **A presence check is not an assignment check.** Verifying that every ID appears
+  once says nothing about whether each ID is attached to the *right* thing. When a
+  model carries opaque tokens across a reordering, the dangerous failure is the
+  permutation, and it's invisible to any check that only counts tokens. Know which
+  property your guardrail actually proves.
+- **Watch for a cheap correlated signal when the real fault is undetectable.** I
+  can't detect a permutation from the markers alone, but the model that permuted
+  them also ignored the one-marker-per-line format — an observable deviation I
+  *can* check and retry on. A proxy you can measure beats a fault you can't.
+- **A format-faithful task wants a low temperature even when its output is prose.**
+  The digest reads as creative writing, so `0.7` felt right — but it also has to
+  copy IDs verbatim onto the correct sentence, and that discipline is what the heat
+  eroded. Separate "should the wording vary" from "must the structure hold."
+- **Post-processing that repairs the model's slop must not assume the model's
+  format.** The blank-line fix broke because it assumed markers sat at line start;
+  the model's whole point of failure is *not* following the format, so the cleanup
+  has to handle the marker wherever it actually landed.
