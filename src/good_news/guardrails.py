@@ -108,18 +108,24 @@ def restore_links(text: str, items: list[Article]) -> str:
 
 
 def _space_items(text: str) -> str:
-    """Guarantee a blank line after every link line and bold-only header line.
+    """Guarantee a blank line after every link and bold-only header line.
 
     Each item is a sentence followed by its link; without a blank line between
     items markdown collapses a whole category into one run-on paragraph. The
     model's spacing is unreliable, so enforce it on the links we control rather
     than asking the model to get it right.
 
+    Every URL here came from a restored @@N@@ marker, and every marker sits at an
+    item boundary, so a blank line belongs after each URL wherever it landed --
+    including when the model wrote the marker inline at the end of the sentence
+    (`... home. @@1@@ A patient ...`) instead of on its own line. Anchoring to
+    line start missed that case and ran the items together, so match every URL.
+
     When the model writes **Category** (bold-only) instead of ## Category, the
     Python markdown library places the header and the following text in the same
     <p>, so email clients render them on the same visual line. Inserting \n\n
     after such lines splits them into separate blocks.
     """
-    text = re.sub(r"(?m)^(https?://\S+)[ \t]*\n+", r"\1\n\n", text)
+    text = re.sub(r"(https?://\S+)[ \t]*\n*", r"\1\n\n", text)
     text = re.sub(r"(?m)^(\*\*[^\n*]+\*\*)[ \t]*\n(?!\n)", r"\1\n\n", text)
     return text.rstrip("\n")

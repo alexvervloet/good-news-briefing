@@ -57,8 +57,12 @@ def _items():
 
 
 def test_restore_links_substitutes_markers():
-    out = restore_links("First @@1@@ and second @@2@@", _items())
-    assert out == "First https://example.com/a and second https://example.com/b"
+    # Each marker ends an item, so a blank line lands after each restored URL —
+    # whatever follows a marker is the next item, never a continuation.
+    out = restore_links("First @@1@@\n\nSecond @@2@@", _items())
+    assert out == (
+        "First https://example.com/a\n\nSecond https://example.com/b"
+    )
 
 
 def test_restore_links_leaves_out_of_range_marker_untouched():
@@ -101,4 +105,17 @@ def test_restore_links_separates_items_with_blank_line():
         "\n"
         "Sentence two.\n"
         "https://example.com/b"
+    )
+
+
+def test_restore_links_separates_items_with_inline_markers():
+    # Regression: the model sometimes writes the marker inline at the end of the
+    # sentence instead of on its own line, leaving the restored URL mid-line. The
+    # blank line still has to land after each link so the items don't run on.
+    digest = "Sentence one. @@1@@ Sentence two. @@2@@"
+    out = restore_links(digest, _items())
+    assert out == (
+        "Sentence one. https://example.com/a\n"
+        "\n"
+        "Sentence two. https://example.com/b"
     )
