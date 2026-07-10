@@ -84,6 +84,69 @@ def test_write_digest_restores_links(monkeypatch, article):
     assert "@@1@@" not in out
 
 
+def install_fake_sequence(monkeypatch, responses):
+    """Point llm.client.chat at a fake that returns `responses` in order (the
+    last is reused once exhausted). Returns the list recording call kwargs."""
+    calls = []
+    seq = list(responses)
+
+    def create(**kwargs):
+        calls.append(kwargs)
+        return seq[min(len(calls) - 1, len(seq) - 1)]
+
+    fake = SimpleNamespace(
+        chat=SimpleNamespace(completions=SimpleNamespace(create=create))
+    )
+    monkeypatch.setattr(llm, "client", fake)
+    return calls
+
+
+def test_write_digest_retries_when_markers_inline(monkeypatch, article):
+    # First draft staples both markers inline (the wrong-links sloppiness); the
+    # retry comes back clean, so write_digest adopts it and links resolve.
+    other = type(article)("Other win", "good", "https://example.com/b", "src")
+    article.category, article.reason = "environment", "great stuff"
+    other.category, other.reason = "community_helping", "kind stuff"
+    calls = install_fake_sequence(
+        monkeypatch,
+        [
+            fake_chat(content="One. @@1@@ Two. @@2@@"),
+            fake_chat(content="One.\n@@1@@\n\nTwo.\n@@2@@"),
+        ],
+    )
+
+    out = llm.write_digest([article, other])
+    assert len(calls) == 2  # it regenerated once
+    assert article.link in out and other.link in out
+    assert "@@1@@" not in out and "@@2@@" not in out
+
+
+def test_write_digest_no_retry_when_markers_clean(monkeypatch, article):
+    # A well-formatted first draft must not trigger a wasteful second call.
+    article.category, article.reason = "environment", "great stuff"
+    calls = install_fake_client(
+        monkeypatch, fake_chat(content="Wonderful news!\n@@1@@")
+    )
+    llm.write_digest([article])
+    assert len(calls) == 1
+
+
+def test_write_digest_keeps_first_when_retry_still_bad(monkeypatch, article):
+    # If the re-roll is no better, keep the usable first draft rather than a
+    # worse one. Links still resolve from the inline first draft.
+    article.category, article.reason = "environment", "great stuff"
+    calls = install_fake_sequence(
+        monkeypatch,
+        [
+            fake_chat(content="Wonderful. @@1@@"),
+            fake_chat(content="Still inline. @@1@@"),
+        ],
+    )
+    out = llm.write_digest([article])
+    assert len(calls) == 2  # it tried once more
+    assert article.link in out and "@@1@@" not in out
+
+
 def test_write_digest_raises_on_truncation(monkeypatch, article):
     # finish_reason == "length" is how chain-of-thought leaked before; fail loud.
     install_fake_client(

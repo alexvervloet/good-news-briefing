@@ -5,7 +5,12 @@ digest, and the model writing its own (broken) URLs instead of using markers.
 
 from __future__ import annotations
 
-from good_news.guardrails import answer_text, message_text, restore_links
+from good_news.guardrails import (
+    answer_text,
+    markers_each_on_own_line,
+    message_text,
+    restore_links,
+)
 from good_news.models import Article
 from conftest import fake_message
 
@@ -106,6 +111,19 @@ def test_restore_links_separates_items_with_blank_line():
         "Sentence two.\n"
         "https://example.com/b"
     )
+
+
+def test_markers_each_on_own_line_true_when_isolated():
+    assert markers_each_on_own_line("Sentence one.\n@@1@@\n\nSentence two.\n@@2@@")
+
+
+def test_markers_each_on_own_line_false_when_inline():
+    # The failure mode from the wrong-links run: markers stapled to the sentence.
+    assert not markers_each_on_own_line("Sentence one. @@1@@ Sentence two. @@2@@")
+
+
+def test_markers_each_on_own_line_false_when_no_markers():
+    assert not markers_each_on_own_line("No markers at all here.")
 
 
 def test_restore_links_separates_items_with_inline_markers():

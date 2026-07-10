@@ -76,6 +76,22 @@ def answer_text(msg: Any) -> str:
 _LINK_MARK_RE = re.compile(r"@@(\d+)@@")
 
 
+def markers_each_on_own_line(text: str) -> bool:
+    """True when every @@N@@ marker sits alone on its own line, as instructed.
+
+    The digest prompt tells the model to copy each item's marker onto its own
+    line. When it instead writes the marker inline at the end of a sentence, the
+    run tends to be a sloppy one -- the same runs that staple links onto the
+    wrong stories. So a marker that shares its line with other text is a cheap
+    signal to regenerate before the mismatch reaches the reader.
+    """
+    markers = _LINK_MARK_RE.findall(text)
+    if not markers:
+        return False
+    alone = len(re.findall(r"(?m)^[ \t]*@@\d+@@[ \t]*$", text))
+    return alone == len(markers)
+
+
 def restore_links(text: str, items: list[Article]) -> str:
     """Replace @@N@@ markers with the real link for items[N-1]."""
 

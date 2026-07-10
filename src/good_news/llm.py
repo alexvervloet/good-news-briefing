@@ -12,7 +12,12 @@ from typing import Any, cast
 from openai import OpenAI
 
 from . import config
-from .guardrails import answer_text, restore_links, verdict_json
+from .guardrails import (
+    answer_text,
+    markers_each_on_own_line,
+    restore_links,
+    verdict_json,
+)
 from .models import Article, Verdict
 from .prompts import CRITERIA, DIGEST_PROMPT, VERDICT_SCHEMA
 
@@ -124,18 +129,41 @@ def write_digest(items: list[Article]) -> str:
         f"[{it.category}] {it.title}\n{it.reason}\n@@{i}@@"
         for i, it in enumerate(items, 1)
     ) + think_suffix(config.DIGEST_THINKING)
-    resp = client.chat.completions.create(
-        model=config.CHAT_MODEL,
-        temperature=0.7,
-        max_tokens=config.DIGEST_MAX_TOKENS,
-        messages=[
-            {"role": "system", "content": DIGEST_PROMPT},
-            {"role": "user", "content": payload},
-        ],
-        extra_body=think_extra_body(config.DIGEST_THINKING),
-    )
-    choice = resp.choices[0]
+
+    def _generate(temperature: float):
+        resp = client.chat.completions.create(
+            model=config.CHAT_MODEL,
+            temperature=temperature,
+            max_tokens=config.DIGEST_MAX_TOKENS,
+            messages=[
+                {"role": "system", "content": DIGEST_PROMPT},
+                {"role": "user", "content": payload},
+            ],
+            extra_body=think_extra_body(config.DIGEST_THINKING),
+        )
+        return resp.choices[0]
+
+    choice = _generate(config.DIGEST_TEMPERATURE)
     text = answer_text(choice.message)
+    # One retry when the model ignored the one-marker-per-line format. That
+    # sloppiness has coincided with links landing on the wrong story, and the
+    # marker guardrail can't catch a permutation (each marker still appears
+    # once). Skip the retry on a truncated reply -- that's a token-cap problem,
+    # not a formatting one -- and only adopt the retry if it comes back clean,
+    # so a worse re-roll never replaces a usable first draft.
+    if text and choice.finish_reason != "length" and not markers_each_on_own_line(text):
+        print(
+            "  ! digest markers not each on their own line; regenerating once",
+            file=sys.stderr,
+        )
+        retry = _generate(0.0)
+        retry_text = answer_text(retry.message)
+        if (
+            retry_text
+            and retry.finish_reason != "length"
+            and markers_each_on_own_line(retry_text)
+        ):
+            choice, text = retry, retry_text
     if not text:
         raise RuntimeError(
             "model returned no digest text (it likely emitted only reasoning); "

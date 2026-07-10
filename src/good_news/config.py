@@ -82,6 +82,13 @@ CLASSIFY_FREQUENCY_PENALTY = 0
 # so reasoning tokens waste budget without improving output.
 DIGEST_THINKING = False
 
+# Sampling temperature for the digest. The digest is a format-faithful task as
+# much as a creative one -- the model must copy each item's @@N@@ marker onto the
+# right sentence -- and higher temperatures made it wander from that format and,
+# in the same runs, staple links onto the wrong stories. Kept warm enough for
+# varied prose but low enough to hold the marker discipline.
+DIGEST_TEMPERATURE = 0.3
+
 # Upper bound on the digest completion. Without an explicit cap LM Studio applies
 # its own default limit, which truncates the briefing mid-sentence once enough
 # items pass the filter. Sized to comfortably fit a full multi-category digest
