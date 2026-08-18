@@ -13,8 +13,12 @@ from openai import OpenAI
 
 from . import config
 from .guardrails import (
+    Alignment,
+    alignments,
     answer_text,
     markers_each_on_own_line,
+    misaligned,
+    realign,
     restore_links,
     verdict_json,
 )
@@ -124,6 +128,21 @@ def embed(texts: list[str]) -> list[list[float]]:
     return [d.embedding for d in resp.data]
 
 
+def _digest_faults(text: str, aligns: list[Alignment]) -> str:
+    """Why this draft is worth re-rolling, as a phrase to log -- "" when sound.
+
+    Two checks, in increasing order of what they prove: the format proxy (a
+    marker written inline is the visible symptom of a sloppy run) and the
+    semantic one (a sentence that matches a different item than its marker says).
+    """
+    why = []
+    if not markers_each_on_own_line(text):
+        why.append("markers not each on their own line")
+    if bad := misaligned(aligns, config.DIGEST_ALIGNMENT_MARGIN):
+        why.append(f"{len(bad)} sentence(s) carrying another story's marker")
+    return "; ".join(why)
+
+
 def write_digest(items: list[Article]) -> str:
     payload = "\n\n".join(
         f"[{it.category}] {it.title}\n{it.reason}\n@@{i}@@"
@@ -145,25 +164,22 @@ def write_digest(items: list[Article]) -> str:
 
     choice = _generate(config.DIGEST_TEMPERATURE)
     text = answer_text(choice.message)
-    # One retry when the model ignored the one-marker-per-line format. That
-    # sloppiness has coincided with links landing on the wrong story, and the
-    # marker guardrail can't catch a permutation (each marker still appears
-    # once). Skip the retry on a truncated reply -- that's a token-cap problem,
-    # not a formatting one -- and only adopt the retry if it comes back clean,
-    # so a worse re-roll never replaces a usable first draft.
-    if text and choice.finish_reason != "length" and not markers_each_on_own_line(text):
-        print(
-            "  ! digest markers not each on their own line; regenerating once",
-            file=sys.stderr,
-        )
-        retry = _generate(0.0)
-        retry_text = answer_text(retry.message)
-        if (
-            retry_text
-            and retry.finish_reason != "length"
-            and markers_each_on_own_line(retry_text)
-        ):
-            choice, text = retry, retry_text
+    aligns: list[Alignment] = []
+    # One retry when the draft is unsound: markers written off-format, or -- the
+    # fault that actually reaches the reader -- a sentence carrying another
+    # story's marker. Skip the retry on a truncated reply (that's a token-cap
+    # problem, not a formatting one) and only adopt the retry if it comes back
+    # clean, so a worse re-roll never replaces a usable first draft.
+    if text and choice.finish_reason != "length":
+        aligns = alignments(text, items, embed)
+        if faults := _digest_faults(text, aligns):
+            print(f"  ! digest {faults}; regenerating once", file=sys.stderr)
+            retry = _generate(0.0)
+            retry_text = answer_text(retry.message)
+            if retry_text and retry.finish_reason != "length":
+                retry_aligns = alignments(retry_text, items, embed)
+                if not _digest_faults(retry_text, retry_aligns):
+                    choice, text, aligns = retry, retry_text, retry_aligns
     if not text:
         raise RuntimeError(
             "model returned no digest text (it likely emitted only reasoning); "
@@ -179,6 +195,8 @@ def write_digest(items: list[Article]) -> str:
                 f"returning {len(last)} of {len(items)} items",
                 file=sys.stderr,
             )
+            # Trimming moved every marker span, so score the text we will ship.
+            aligns = alignments(text, items, embed)
         else:
             hint = (
                 " (token cap hit mid-reasoning — try setting DIGEST_THINKING = True"
@@ -190,4 +208,6 @@ def write_digest(items: list[Article]) -> str:
             raise RuntimeError(
                 f"digest hit the {config.DIGEST_MAX_TOKENS}-token cap with no complete items{hint}"
             )
-    return restore_links(text, items)
+    # Last resort: the retry (if any) came back misaligned too, so repair the
+    # mapping we have rather than mailing a story its neighbour's link.
+    return restore_links(realign(text, aligns, config.DIGEST_ALIGNMENT_MARGIN), items)
