@@ -432,3 +432,77 @@ bigger lever against it.
   format.** The blank-line fix broke because it assumed markers sat at line start;
   the model's whole point of failure is *not* following the format, so the cleanup
   has to handle the marker wherever it actually landed.
+
+---
+
+## 2026-08-18 — Closing the permutation hole: the embedding model already on the GPU can check the markers the marker audit can't
+
+**Context.** The entry above ends with an honest limitation: "a run that formats
+markers perfectly yet still permutes them would slip through." Roughly one run in
+twenty did exactly that. The reported briefing had five sentences each carrying
+the *next* story's link — a giant-tree story linking to a wheelchair article, the
+wheelchair story to a micro-shelter one, and the last story wrapping around to
+the first. The markers were one per line, each used exactly once: every guardrail
+in the code passed, and the mis-mapping went out by email.
+
+**Finding.** A rotation is the worst case for the existing checks by
+construction. `restore_links()` compares the multiset of marker numbers to
+`{1..N}` — a rotation is a bijection, so the sets match.
+`markers_each_on_own_line()` is a *proxy*, chosen last time because sloppy
+formatting had co-occurred with mis-mapping; this run was formatted perfectly, so
+the proxy had nothing to fire on. What no check looked at was the one thing that
+actually distinguishes a right link from a wrong one: whether the sentence and
+the item *mean the same thing*. And the tool for that was already loaded on the
+GPU — the embedding model that powers dedupe, idle during the digest call.
+
+**Action.** `guardrails.alignments()` pairs each `@@N@@` with the sentence it was
+written for (the last non-header, non-empty line before it — which also reads the
+inline-marker format correctly, and skips the opening tone-setting line), embeds
+those sentences alongside each item's `title + reason`, and scores every pair.
+`misaligned()` reports a sentence only when a rival item beats the written one by
+more than `DIGEST_ALIGNMENT_MARGIN`. `write_digest()` now re-rolls on *that*
+fault, not just the format proxy, and `realign()` repairs the mapping as a last
+resort when the re-roll comes back wrong too — but only when the corrected
+mapping is still one-to-one, since a repair that links one story twice and leaves
+another unlinked is worse than the model's own guess. The check fails open: an
+unreachable embedding model logs and skips, it never costs the briefing.
+
+**Result.** Measured against the live embedding model on two five-item digests —
+the reported bad one and the README example, the latter deliberately containing
+two same-category rescue stories:
+
+| mapping | what the check sees |
+|---|---|
+| correct | the right item wins **every** sentence; largest wrong-item gap `+0.000` |
+| all four rotations | 5/5 sentences flagged, gaps `+0.16` to `+0.63` |
+| a single adjacent swap | exactly the 2 swapped sentences flagged |
+
+So the decision margin has an order of magnitude of headroom on both sides, and
+`0.05` sits in the empty band between them. Replaying the reported briefing
+through `realign()` restores all five links to their own stories. A live
+`--dry-run` produced a six-item digest with no re-roll and no repair — the check
+is silent on good output, which is the property that matters most for something
+that runs unattended every evening.
+
+**Takeaway.**
+
+- **When you can't check a property, look for a model you're already paying for
+  that can.** The permutation was undetectable *from the markers* — but never
+  from the text. The embedding model was already resident for dedupe, so the fix
+  cost one extra call per digest and no new dependency. Ask what's already in the
+  process before adding machinery.
+- **A proxy buys time; it doesn't close the hole.** The format check was the right
+  call when the real fault was unmeasurable, and it kept catching sloppy runs. But
+  it only ever fired on the *correlated* symptom, so the failures that skipped the
+  symptom sailed through. Treat "I retry on a proxy" as a standing debt, and pay
+  it when a real signal becomes available.
+- **Make the repair prove itself before it fires.** Rewriting the model's markers
+  is exactly the kind of clever post-processing that turns one bad briefing into a
+  differently bad one, so the repair is gated twice: a per-sentence margin, and a
+  global one-to-one check that refuses the whole repair if it would link a story
+  twice. Preferring "regenerate cleanly" over "repair" keeps it a last resort.
+- **Calibrate a threshold against the adversarial case, not the easy one.** The
+  number to beat wasn't "does it separate a tree story from a phone story" but
+  "does it separate two rescue stories in the same category that dedupe already
+  let through." It did — by the full margin — which is the only reason 0.05 is
+  defensible rather than guessed.
