@@ -32,6 +32,32 @@ def fake_chat(content="", reasoning_content=None, finish_reason="stop"):
     return SimpleNamespace(choices=[choice])
 
 
+# --- a fake embedding model -----------------------------------------------
+# The digest link check (guardrails.alignments) asks an embedding model whether
+# each sentence really belongs to the item whose marker it carries. To test that
+# logic without a GPU we embed by *topic word*: a text mentioning topics[i]
+# becomes the i-th unit vector, so cosine is 1.0 for a matching sentence/item
+# pair and 0.0 for a mismatched one -- meaning made deterministic.
+
+
+def topic_embed(*topics):
+    """An embed_fn keyed on topic words: a text mentioning topics[i] embeds to
+    the i-th unit vector. A text mentioning none embeds to zero, which cosine
+    scores 0 against everything."""
+
+    def embed(texts):
+        vecs = []
+        for text in texts:
+            v = [0.0] * len(topics)
+            for i, word in enumerate(topics):
+                if word in text.lower():
+                    v[i] = 1.0
+            vecs.append(v)
+        return vecs
+
+    return embed
+
+
 @pytest.fixture
 def article():
     """A minimal Article to flow through the pipeline."""
