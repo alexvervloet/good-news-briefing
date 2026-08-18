@@ -1,11 +1,13 @@
 """Orchestration: wire fetch -> classify -> filter -> dedupe -> digest -> deliver."""
 
 from __future__ import annotations
-import math
 import sys
 import datetime
 
 from . import config
+# cosine lives in guardrails now that the digest link check uses it too; dedupe
+# is still its other consumer, so it stays reachable as pipeline.cosine.
+from .guardrails import cosine
 from .models import Article, Verdict
 from .sources import fetch, fetch_article_text
 from .store import SeenStore
@@ -22,13 +24,6 @@ def keep(v: Verdict | None) -> bool:
     if v.is_pure_luck and v.category != "community_helping":
         return False
     return v.optimism >= config.OPTIMISM_THRESHOLD
-
-
-def cosine(a, b) -> float:
-    dot = sum(x * y for x, y in zip(a, b))
-    na = math.sqrt(sum(x * x for x in a))
-    nb = math.sqrt(sum(y * y for y in b))
-    return dot / (na * nb) if na and nb else 0.0
 
 
 def dedupe(items: list[Article], min_keep: int = 1) -> list[Article]:
