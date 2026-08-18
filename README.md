@@ -15,7 +15,9 @@ classification and writing all happen on your own GPU.
 > change and the measured effect, live in **[`LEARNINGS.md`](LEARNINGS.md)**:
 > - **The model hallucinates plausible-but-dead URLs**, so it never sees one —
 >   each item carries an opaque `@@N@@` marker it echoes, and real links are
->   spliced back in by code after generation.
+>   spliced back in by code after generation. Auditing those markers proves
+>   *presence*, not *assignment*, so a second pass embeds each written sentence
+>   and checks it really belongs to the item its marker names.
 > - **Structured-output field order is generation order.** Putting the free-text
 >   `reason` *before* the `optimism` number in the JSON schema makes the model
 >   justify before it scores — a free calibration win that erased a
@@ -212,7 +214,9 @@ project has taught me — measured findings about model behavior, evaluation, an
 prompt design, each with the change I made and what the numbers did. For example:
 the model paraphrases URLs into plausible-but-dead links, so it never sees one —
 each item carries an opaque `@@N@@` marker it echoes, and real links are spliced
-back in by code after generation; or, further down the log, the model silently
+back in by code after generation (and, because a *permuted* set of markers passes
+any presence check, an embedding pass verifies each sentence against the item its
+marker names); or, further down the log, the model silently
 compressing the optimism scale onto a single value until the prompt gave it
 calibration anchors.
 
