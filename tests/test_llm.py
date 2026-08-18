@@ -14,12 +14,24 @@ from types import SimpleNamespace
 import pytest
 
 from good_news import llm
-from conftest import fake_chat
+from good_news.models import Article
+from conftest import fake_chat, topic_embed
+
+
+def install_fake_embed(monkeypatch, embed_fn=None):
+    """Point llm.embed at a fake. The default embeds everything to zero, so the
+    digest link check (guardrails.alignments) finds no evidence either way and
+    stays out of tests that aren't about it; pass a topic_embed() to give the
+    sentences meaning."""
+    monkeypatch.setattr(
+        llm, "embed", embed_fn or (lambda texts: [[0.0] for _ in texts])
+    )
 
 
 def install_fake_client(monkeypatch, response):
     """Point llm.client at a fake that returns `response` from both the chat
     and embeddings endpoints. Returns a list that records the call kwargs."""
+    install_fake_embed(monkeypatch)
     calls = []
 
     def create(**kwargs):
@@ -98,6 +110,7 @@ def install_fake_sequence(monkeypatch, responses):
         chat=SimpleNamespace(completions=SimpleNamespace(create=create))
     )
     monkeypatch.setattr(llm, "client", fake)
+    install_fake_embed(monkeypatch)
     return calls
 
 
@@ -161,3 +174,81 @@ def test_write_digest_raises_on_empty_answer(monkeypatch, article):
     install_fake_client(monkeypatch, fake_chat(content="<think>hmm</think>"))
     with pytest.raises(RuntimeError, match="no digest text"):
         llm.write_digest([article])
+
+
+# --- write_digest(): the right link on the right story ---------------------
+#
+# The bug these cover: the model copies every marker exactly once but permutes
+# them across sentences, so each story is mailed its neighbour's link. Presence
+# checks can't see it; only the semantic check can.
+
+def _two_stories():
+    trees = Article("Town plants 10,000 trees", "", "https://example.com/trees",
+                        "src", category="environment", reason="a hillside reforested")
+    chair = Article("Park gets all-terrain wheelchair", "",
+                        "https://example.com/chair", "src",
+                        category="community_helping", reason="barriers removed")
+    return [trees, chair]
+
+
+_ROTATED = "A hillside is dense with trees again.\n@@2@@\n\nThe park lends a wheelchair.\n@@1@@"
+_CORRECT = "A hillside is dense with trees again.\n@@1@@\n\nThe park lends a wheelchair.\n@@2@@"
+_EXPECTED = (
+    "A hillside is dense with trees again.\n"
+    "https://example.com/trees\n"
+    "\n"
+    "The park lends a wheelchair.\n"
+    "https://example.com/chair"
+)
+
+
+def test_write_digest_regenerates_when_links_are_misassigned(monkeypatch):
+    # The markers are perfectly formatted -- one per line, each used once -- so
+    # every older guardrail passes. Only the meaning of the sentences reveals
+    # that they have been swapped, and that has to be enough to force a re-roll.
+    calls = install_fake_sequence(
+        monkeypatch, [fake_chat(content=_ROTATED), fake_chat(content=_CORRECT)]
+    )
+    install_fake_embed(monkeypatch, topic_embed("trees", "wheelchair"))
+
+    out = llm.write_digest(_two_stories())
+    assert len(calls) == 2  # it regenerated
+    assert out == _EXPECTED
+
+
+def test_write_digest_repairs_when_the_retry_is_also_misassigned(monkeypatch):
+    # Both drafts swap the markers. Rather than mail a story its neighbour's
+    # link, put each marker back on the sentence it was written for.
+    calls = install_fake_sequence(
+        monkeypatch, [fake_chat(content=_ROTATED), fake_chat(content=_ROTATED)]
+    )
+    install_fake_embed(monkeypatch, topic_embed("trees", "wheelchair"))
+
+    out = llm.write_digest(_two_stories())
+    assert len(calls) == 2
+    assert out == _EXPECTED
+
+
+def test_write_digest_does_not_reroll_a_correct_digest(monkeypatch):
+    # The check must not fire on a good draft: a needless re-roll costs a whole
+    # generation and risks a worse briefing.
+    calls = install_fake_sequence(monkeypatch, [fake_chat(content=_CORRECT)])
+    install_fake_embed(monkeypatch, topic_embed("trees", "wheelchair"))
+
+    assert llm.write_digest(_two_stories()) == _EXPECTED
+    assert len(calls) == 1
+
+
+def test_write_digest_survives_a_dead_embedding_model(monkeypatch, capsys):
+    # Fail open: an unreachable embedding model must not cost us the briefing,
+    # and must not trigger a pointless re-roll either.
+    def down(_texts):
+        raise RuntimeError("connection refused")
+
+    calls = install_fake_sequence(monkeypatch, [fake_chat(content=_ROTATED)])
+    install_fake_embed(monkeypatch, down)
+
+    out = llm.write_digest(_two_stories())
+    assert len(calls) == 1
+    assert "https://example.com/trees" in out and "https://example.com/chair" in out
+    assert "skipping the digest link check" in capsys.readouterr().err
