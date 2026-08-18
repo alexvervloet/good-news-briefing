@@ -89,6 +89,14 @@ DIGEST_THINKING = False
 # varied prose but low enough to hold the marker discipline.
 DIGEST_TEMPERATURE = 0.3
 
+# How much better a rival item must match a digest sentence before we conclude
+# the model stapled the wrong @@N@@ marker onto it (guardrails.alignments). The
+# items reaching the digest are stories dedupe already judged distinct, so a real
+# mismatch shows a gap of several tenths; this only stops two near-neighbours in
+# the same category from triggering a pointless re-roll. Raise it if a clean
+# digest gets regenerated; lower it if a subtle swap slips through.
+DIGEST_ALIGNMENT_MARGIN = 0.05
+
 # Upper bound on the digest completion. Without an explicit cap LM Studio applies
 # its own default limit, which truncates the briefing mid-sentence once enough
 # items pass the filter. Sized to comfortably fit a full multi-category digest
