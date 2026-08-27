@@ -64,13 +64,8 @@ def dedupe_key(item: Article) -> str:
     return f"{item.title} {item.summary[:600]}".strip()
 
 
-def dedupe(items: list[Article], min_keep: int = 1) -> list[Article]:
-    """Collapse near-identical coverage, keeping the highest-optimism version.
-
-    If the strict threshold would leave fewer than min_keep items, retries with
-    DEDUPE_SIMILARITY_RELAXED so sparse categories aren't over-collapsed.
-    Embeddings are computed once and reused across both passes.
-    """
+def dedupe(items: list[Article]) -> list[Article]:
+    """Collapse coverage of the same event, keeping the highest-optimism version."""
     if len(items) < 2:
         return items
     try:
@@ -79,19 +74,13 @@ def dedupe(items: list[Article], min_keep: int = 1) -> list[Article]:
         print(f"  ! embeddings unavailable, skipping dedupe: {e}", file=sys.stderr)
         return items
 
-    def _run(threshold: float) -> list[Article]:
-        kept: list[Article] = []
-        kept_vecs: list[list[float]] = []
-        for it, v in sorted(zip(items, vecs), key=lambda p: -(p[0].optimism or 0)):
-            if all(cosine(v, kv) < threshold for kv in kept_vecs):
-                kept.append(it)
-                kept_vecs.append(v)
-        return kept
-
-    result = _run(config.DEDUPE_SIMILARITY)
-    if len(result) < min_keep:
-        result = _run(config.DEDUPE_SIMILARITY_RELAXED)
-    return result
+    kept: list[Article] = []
+    kept_vecs: list[list[float]] = []
+    for it, v in sorted(zip(items, vecs), key=lambda p: -(p[0].optimism or 0)):
+        if all(cosine(v, kv) < config.DEDUPE_SIMILARITY for kv in kept_vecs):
+            kept.append(it)
+            kept_vecs.append(v)
+    return kept
 
 
 def _print_verdict(article: Article, v: Verdict, passed: bool) -> None:
@@ -159,10 +148,7 @@ def run(
     # Dedupe across the whole batch, before the category split. One event is
     # rarely filed under one category -- the 2026-08-27 Meta settlement landed
     # in both anti_corporate and technology -- so a per-category pass never
-    # compares the copies that matter. Running it here also means the
-    # MIN_PER_CATEGORY relaxation below can no longer re-admit a pair the
-    # strict pass merged, which is how two write-ups of one FDA approval
-    # survived into the same section.
+    # compares the copies that matter.
     kept = dedupe(kept)
     print(f"{len(kept)} after collapsing duplicate coverage", file=sys.stderr)
 
@@ -197,6 +183,13 @@ def run(
         return
 
     selected.sort(key=lambda x: -(x.optimism or 0))
+    if len(selected) > config.MAX_ITEMS:
+        print(
+            f"  trimming {len(selected)} to the top {config.MAX_ITEMS}",
+            file=sys.stderr,
+        )
+        selected = selected[: config.MAX_ITEMS]
+
     md = write_digest(selected)
     today = datetime.date.today().isoformat()
     document = f"# Good News — {today}\n\n{md}\n"

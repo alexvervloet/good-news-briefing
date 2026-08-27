@@ -107,7 +107,12 @@ DIGEST_MAX_TOKENS = 50000
 # PIPELINE THRESHOLDS
 # ----------------------------------------------------------------------
 MAX_PER_CATEGORY = 5
-MIN_PER_CATEGORY = 3  # relax dedupe if a category would have fewer than this
+# Cap on the whole briefing, applied after the per-category caps. MAX_PER_CATEGORY
+# bounds the seven internal categories, which the reader never sees -- the model
+# invents its own thematic headings at write time and routinely folds several
+# categories under one, so nothing there bounds the length of what actually
+# arrives. This does.
+MAX_ITEMS = 15
 OPTIMISM_THRESHOLD = 0.55  # 0..1; raise to be pickier
 # Cosine above this = the same story from a second outlet. Calibrated, not
 # guessed: on the 2026-08-27 items the same-event pairs scored 0.645-0.760 and
@@ -116,9 +121,6 @@ OPTIMISM_THRESHOLD = 0.55  # 0..1; raise to be pickier
 # entirely, which is how five write-ups of one Meta settlement all shipped.
 # Raise it if distinct stories start merging; lower it if duplicates return.
 DEDUPE_SIMILARITY = 0.60
-DEDUPE_SIMILARITY_RELAXED = (
-    0.68  # fallback threshold used when a category is below MIN_PER_CATEGORY
-)
 MAX_ENTRIES_PER_FEED = 25
 # Reddit's RSS links to the comments page, and its "summary" is just the
 # submission blurb. When True, swap in the real article URL and crawl the
