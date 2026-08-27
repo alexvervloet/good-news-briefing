@@ -506,3 +506,82 @@ that runs unattended every evening.
   "does it separate two rescue stories in the same category that dedupe already
   let through." It did — by the full margin — which is the only reason 0.05 is
   defensible rather than guessed.
+
+## 2026-08-27 — Dedupe was thresholding the model's own prose, so five write-ups of one settlement shipped as five stories
+
+**What happened.** An evening briefing went out with five pieces about the same
+Meta child-safety settlement and two about the same pancreatic-cancer approval,
+spread across sections rather than sitting together. The dedupe step had been
+running the whole time and reported nothing wrong.
+
+**What I expected.** `dedupe()` embeds each kept story, drops anything scoring
+above `DEDUPE_SIMILARITY` against a story it already kept, and that number was
+0.86 — high, but the intent was "only collapse near-identical coverage". I
+assumed the threshold was merely too strict and needed lowering a little.
+
+**What was actually wrong.** Three separate faults, and the threshold was the
+least interesting of them.
+
+The embedding key was `title + reason`. `reason` is the classifier's own
+justification — generated text, regenerated on every run. Measuring it on the
+briefing's own items (7 pairs that are genuinely the same event, 164 that are
+not) shows what that costs:
+
+| key | same-event pairs | unrelated pairs | separation |
+|---|---|---|---|
+| title only | 0.546 – 0.809 | ≤ 0.624 | overlap |
+| title + reason | 0.511 – 0.894 | ≤ 0.561 | overlap |
+| title + summary | 0.645 – 0.760 | ≤ 0.539 | **+0.107** |
+
+Only the feed's own summary separates the two populations at all. With
+`title + reason` there is no threshold that works, because the same pair of
+articles scored 0.894 on one run and 0.796 on the next — the input to the
+comparison was being rewritten by the model between measurements. Commit
+07d2c22 had switched to `title + reason` reasoning that a verdict describes a
+story better than a headline does. It does; it just isn't stable enough to draw
+a line against.
+
+Second, `0.86` was above the duplicate band entirely. Real same-event pairs top
+out at 0.760, so the threshold could never have fired on cross-outlet coverage.
+It was only ever catching near-identical text.
+
+Third, and the reason the sections looked scrambled: dedupe ran *inside* the
+per-category loop. One event does not get filed under one category — the
+settlement landed in `anti_corporate` and `technology`, so the copies that
+needed comparing were never in the same list. The same split fed the
+`MIN_PER_CATEGORY` relaxation, which re-ran a thin category at a laxer
+threshold and re-admitted the second pancreatic story to pad the section back
+to three. The guardrail undid its own correct decision.
+
+A fourth, unrelated duplicate turned up while measuring: `fetch()` returns the
+same URL twice when two reddit submissions link one article, and `SeenStore`
+only filters against *previous* runs. The 2026-08-26 briefing shipped one
+404media URL twice, on consecutive lines, with two different write-ups of it.
+
+**The fix.** Dedupe on `title + summary`, once, globally, before the category
+split, at 0.60 — a number picked from the gap between the two measured
+populations rather than by feel. Drop repeat URLs before classifying. Replaying
+the bad briefing: the Meta cluster collapses to one and the pancreatic pair to
+one, while the separate French court ruling on youth social-media bans survives
+as its own story.
+
+**Takeaway.**
+
+- **Never threshold against text the model wrote.** The whole point of a
+  similarity cutoff is that the same input scores the same tomorrow. A field
+  regenerated each run puts noise in the one place the design cannot absorb it,
+  and the failure is invisible — dedupe kept running and kept reporting success.
+  Prefer the source text you were handed over any text you generated.
+- **A threshold you cannot show the distribution for is a guess.** 0.86 read as
+  a considered number and survived months of review. Twenty minutes of measuring
+  the actual duplicate and non-duplicate populations showed it sat outside the
+  range it was meant to cut. Print both populations before picking the number.
+- **Check the scope of a guardrail against the shape of the thing it guards.**
+  Per-category dedupe assumes duplicates share a category. Big stories are
+  exactly the ones that don't — a settlement is simultaneously corporate
+  accountability and a tech story — so the guardrail was weakest on the coverage
+  most likely to be duplicated.
+- **A rule that repairs a shortfall can undo the rule that caused it.** The
+  `MIN_PER_CATEGORY` relaxation exists to stop over-collapsing, and its effect
+  here was to reinstate a duplicate that had been correctly removed. Two
+  guardrails that can reverse each other need an order, not just thresholds.
