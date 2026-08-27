@@ -62,6 +62,25 @@ def test_cosine_zero_vector_is_safe():
     assert pipeline.cosine([0.0, 0.0], [1.0, 1.0]) == 0.0
 
 
+# --- dedupe_links(): the same URL fetched twice ----------------------------
+
+def test_dedupe_links_keeps_first_of_a_repeated_url():
+    # Two reddit submissions pointing at one article arrive as two Articles
+    # sharing a link. Only the first should survive to be classified.
+    a = Article("first", "", "https://example.com/x", "reddit")
+    b = Article("second", "", "https://example.com/x", "reddit")
+    c = Article("other", "", "https://example.com/y", "guardian")
+    assert pipeline.dedupe_links([a, b, c]) == [a, c]
+
+
+def test_dedupe_links_preserves_order_and_passes_through_unique():
+    items = [
+        Article("a", "", "https://example.com/a", "s"),
+        Article("b", "", "https://example.com/b", "s"),
+    ]
+    assert pipeline.dedupe_links(items) == items
+
+
 # --- dedupe(): collapse near-identical coverage ----------------------------
 
 def _art(title, optimism):
