@@ -72,13 +72,16 @@ The pipeline has run nightly via `cron` since 2026-06-19 (see [Scheduling](#sche
 ## How it works
 
 1. **Fetch** — pull a list of RSS feeds (`feedparser`).
-2. **Dedupe history** — skip anything seen on a previous run (SQLite).
+2. **Dedupe history** — skip anything seen on a previous run (SQLite), and drop
+   repeat URLs within the batch (one article can arrive from two feeds).
 3. **Classify** — ask your local chat model to judge each item against the
    editorial criteria, returning structured JSON.
 4. **Filter** — drop corporate PR and pure-luck fluff; keep genuine good news
    above an optimism threshold.
-5. **Collapse duplicates** — use a local embedding model to merge near-identical
-   coverage of the same story (degrades gracefully if no embed model is loaded).
+5. **Collapse duplicates** — use a local embedding model to merge separate
+   outlets' coverage of one event, comparing each story's *published* summary
+   rather than the model's own verdict, across the whole batch rather than
+   within a category (degrades gracefully if no embed model is loaded).
 6. **Compose** — have the model write a calm, grouped Markdown briefing.
 7. **Deliver** — save it to `~/good-news/`, open it (macOS), and optionally email it.
 
