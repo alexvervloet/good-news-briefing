@@ -45,6 +45,25 @@ def dedupe_links(items: list[Article]) -> list[Article]:
     return out
 
 
+def dedupe_key(item: Article) -> str:
+    """What dedupe compares: the story as published, never the model's verdict.
+
+    This used to be title + `reason`, on the theory that the verdict captures
+    what a story is about better than a headline does. Measured on the
+    2026-08-27 briefing (7 same-event pairs against 164 unrelated pairs), it
+    does the opposite -- `reason` is generated text that varies run to run, so
+    it adds noise to the very number the threshold is drawn against:
+
+        title only      dupes 0.546-0.809   others <=0.624   overlap
+        title+reason    dupes 0.511-0.894   others <=0.561   overlap
+        title+summary   dupes 0.645-0.760   others <=0.539   0.107 gap
+
+    Only the feed's own summary separates the two populations cleanly, so the
+    threshold below has somewhere stable to sit.
+    """
+    return f"{item.title} {item.summary[:600]}".strip()
+
+
 def dedupe(items: list[Article], min_keep: int = 1) -> list[Article]:
     """Collapse near-identical coverage, keeping the highest-optimism version.
 
@@ -55,7 +74,7 @@ def dedupe(items: list[Article], min_keep: int = 1) -> list[Article]:
     if len(items) < 2:
         return items
     try:
-        vecs = embed([f"{it.title} {it.reason or ''}".strip() for it in items])
+        vecs = embed([dedupe_key(it) for it in items])
     except Exception as e:
         print(f"  ! embeddings unavailable, skipping dedupe: {e}", file=sys.stderr)
         return items
@@ -137,6 +156,16 @@ def run(
         store.commit()
     print(f"{len(kept)} passed the filter", file=sys.stderr)
 
+    # Dedupe across the whole batch, before the category split. One event is
+    # rarely filed under one category -- the 2026-08-27 Meta settlement landed
+    # in both anti_corporate and technology -- so a per-category pass never
+    # compares the copies that matter. Running it here also means the
+    # MIN_PER_CATEGORY relaxation below can no longer re-admit a pair the
+    # strict pass merged, which is how two write-ups of one FDA approval
+    # survived into the same section.
+    kept = dedupe(kept)
+    print(f"{len(kept)} after collapsing duplicate coverage", file=sys.stderr)
+
     by_cat: dict[str, list[Article]] = {}
     for a in kept:
         by_cat.setdefault(a.category or "other", []).append(a)
@@ -154,7 +183,9 @@ def run(
 
     selected: list[Article] = []
     for cat, group in by_cat.items():
-        group = dedupe(group, min_keep=config.MIN_PER_CATEGORY)
+        # No dedupe pass here: the global one above already collapsed every
+        # pair at or above DEDUPE_SIMILARITY, so a second per-category pass
+        # can only spend embedding calls to find nothing.
         group.sort(key=lambda x: -(x.optimism or 0))
         selected.extend(group[:config.MAX_PER_CATEGORY])
 

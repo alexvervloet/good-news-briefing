@@ -109,9 +109,15 @@ DIGEST_MAX_TOKENS = 50000
 MAX_PER_CATEGORY = 5
 MIN_PER_CATEGORY = 3  # relax dedupe if a category would have fewer than this
 OPTIMISM_THRESHOLD = 0.55  # 0..1; raise to be pickier
-DEDUPE_SIMILARITY = 0.86  # cosine above this = treat as the same story
+# Cosine above this = the same story from a second outlet. Calibrated, not
+# guessed: on the 2026-08-27 items the same-event pairs scored 0.645-0.760 and
+# every unrelated pair scored <=0.539 (see pipeline.dedupe_key), so 0.60 sits in
+# the gap between the two populations. The old 0.86 was above the duplicate band
+# entirely, which is how five write-ups of one Meta settlement all shipped.
+# Raise it if distinct stories start merging; lower it if duplicates return.
+DEDUPE_SIMILARITY = 0.60
 DEDUPE_SIMILARITY_RELAXED = (
-    0.92  # fallback threshold used when a category is below MIN_PER_CATEGORY
+    0.68  # fallback threshold used when a category is below MIN_PER_CATEGORY
 )
 MAX_ENTRIES_PER_FEED = 25
 # Reddit's RSS links to the comments page, and its "summary" is just the
