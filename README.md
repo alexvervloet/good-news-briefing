@@ -163,7 +163,9 @@ two files:
 - `src/good_news/config.py`
   - **`FEEDS`** — the list of RSS sources.
   - `CHAT_MODEL`, `EMBED_MODEL`, `THINKING` — model ids and the Qwen reasoning toggle.
-  - `OPTIMISM_THRESHOLD`, `DEDUPE_SIMILARITY`, `MAX_PER_CATEGORY`, `MAX_ENTRIES_PER_FEED`.
+  - `OPTIMISM_THRESHOLD`, `DEDUPE_SIMILARITY`, `MAX_PER_CATEGORY`, `MAX_ITEMS`,
+    `MAX_ENTRIES_PER_FEED`. `MAX_PER_CATEGORY` bounds each internal category;
+    `MAX_ITEMS` bounds the briefing the reader actually gets.
 
 Run it with `python3 good_news_briefing.py ...` from a source checkout, or
 `pip install -e .` and then use `python3 -m good_news ...` (or the `good-news`
