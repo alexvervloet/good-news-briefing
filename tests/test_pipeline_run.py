@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import pytest
 
-from good_news import pipeline
+from good_news import config, pipeline
 from good_news.models import Article, Verdict
 
 
@@ -19,11 +19,11 @@ def _article(title, link, reddit=False):
     return Article(title, f"summary of {title}", link, "src", is_reddit_article=reddit)
 
 
-def _verdict(good, optimism=0.9):
+def _verdict(good, optimism=0.9, category="environment"):
     """A verdict that passes the filter when good=True, fails when good=False."""
     return Verdict(
         is_good_news=good,
-        category="environment",
+        category=category,
         optimism=optimism,
         is_corporate_pr=False,
         is_pure_luck=False,
@@ -192,3 +192,43 @@ def test_run_crawls_reddit_article_body(wire, monkeypatch):
     pipeline.run(dry_run=True)
     # The crawled body replaced the RSS summary before the model saw it.
     assert wire["classified"][0].summary == "CRAWLED BODY"
+
+
+# --- the whole briefing is capped, not just each category ------------------
+
+def test_run_caps_the_briefing_at_max_items(wire, monkeypatch):
+    # MAX_PER_CATEGORY bounds the internal categories, which the reader never
+    # sees: the model merges them into its own headings at write time, so a
+    # briefing can be seven categories long. MAX_ITEMS is what bounds the thing
+    # that actually arrives.
+    cats = [
+        "politics_social", "anti_corporate", "technology", "community_helping",
+        "science_health", "environment", "other",
+    ]
+    n = config.MAX_ITEMS * 2
+    wire["articles"] = [_article(f"Story {i}", f"https://example.com/{i}") for i in range(n)]
+    wire["verdicts"] = {
+        f"Story {i}": _verdict(True, optimism=0.9 - i / 100, category=cats[i % len(cats)])
+        for i in range(n)
+    }
+    # Spread thinly enough that MAX_PER_CATEGORY can't be what trims them.
+    assert n / len(cats) <= config.MAX_PER_CATEGORY
+    # Orthogonal vectors: every story is distinct, so dedupe collapses nothing.
+    monkeypatch.setattr(
+        pipeline, "embed",
+        lambda texts: [[1.0 if j == i else 0.0 for j in range(len(texts))]
+                       for i in range(len(texts))],
+    )
+
+    pipeline.run(dry_run=True)
+
+    kept = wire["digest_items"]
+    assert len(kept) == config.MAX_ITEMS
+    # And it keeps the best ones, not the first ones it happened to see.
+    assert [a.title for a in kept] == [f"Story {i}" for i in range(config.MAX_ITEMS)]
+
+
+def test_run_leaves_a_short_briefing_alone(wire):
+    # The cap must only ever trim; a normal evening is well under it.
+    pipeline.run(dry_run=True)
+    assert len(wire["digest_items"]) == 1
