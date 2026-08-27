@@ -26,6 +26,25 @@ def keep(v: Verdict | None) -> bool:
     return v.optimism >= config.OPTIMISM_THRESHOLD
 
 
+def dedupe_links(items: list[Article]) -> list[Article]:
+    """Drop repeat appearances of the same URL, keeping the first.
+
+    Two reddit submissions can link the same article, and a story can sit in two
+    feeds at once, so fetch() genuinely returns the same link more than once.
+    SeenStore only filters against *previous* runs, so without this the copies
+    are classified independently, get different `reason` text, and can land in
+    different categories -- which is how the 2026-08-26 briefing shipped one
+    404media URL twice.
+    """
+    seen: set[str] = set()
+    out: list[Article] = []
+    for a in items:
+        if a.link not in seen:
+            seen.add(a.link)
+            out.append(a)
+    return out
+
+
 def dedupe(items: list[Article], min_keep: int = 1) -> list[Article]:
     """Collapse near-identical coverage, keeping the highest-optimism version.
 
@@ -84,13 +103,15 @@ def run(
     print(f"fetched {len(articles)} articles", file=sys.stderr)
 
     if dry_run:
-        fresh = [a for a in articles if a.link]
+        fresh = dedupe_links([a for a in articles if a.link])
         print(
             f"{len(fresh)} to judge (dry run, ignoring seen-history)", file=sys.stderr
         )
     else:
         assert store is not None
-        fresh = [a for a in articles if a.link and not store.is_seen(a.link)]
+        fresh = dedupe_links(
+            [a for a in articles if a.link and not store.is_seen(a.link)]
+        )
         print(f"{len(fresh)} new since last run", file=sys.stderr)
 
     kept: list[Article] = []
