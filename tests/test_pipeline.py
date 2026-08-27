@@ -124,17 +124,23 @@ def test_dedupe_noop_for_single_item():
 
 
 def test_dedupe_relaxes_threshold_when_below_min_keep(monkeypatch):
-    # near-dup-high and near-dup-low have cosine similarity of 0.89 -- between
-    # the strict threshold (0.86) and the relaxed one (0.92).
-    # Strict pass: 0.89 > 0.86 → they collapse → 2 items survive.
+    # near-dup-high and near-dup-low sit midway between the strict and relaxed
+    # thresholds, so the two passes disagree about them. Derived from config
+    # rather than hard-coded: retuning the thresholds must not silently turn
+    # this into a test of something else.
+    # Strict pass: sim > strict → they collapse → 2 items survive.
     # min_keep=3: 2 < 3 → retry with relaxed pass.
-    # Relaxed pass: 0.89 < 0.92 → they are NOT duplicates → 3 items survive.
+    # Relaxed pass: sim < relaxed → they are NOT duplicates → 3 items survive.
     import math
-    sim = 0.89
+    sim = (config.DEDUPE_SIMILARITY + config.DEDUPE_SIMILARITY_RELAXED) / 2
+    # Three dimensions, not two: in 2-D the vector that sits `sim` away from
+    # near-dup-high is necessarily close to a [0, 1] "other", which made this
+    # collide once the thresholds came down. The third axis keeps "other"
+    # orthogonal to both members of the pair at any threshold.
     vecs = {
-        "near-dup-high": [1.0, 0.0],
-        "near-dup-low":  [sim, math.sqrt(1 - sim ** 2)],  # cosine([1,0], this) == 0.89
-        "other":         [0.0, 1.0],
+        "near-dup-high": [1.0, 0.0, 0.0],
+        "near-dup-low":  [sim, math.sqrt(1 - sim ** 2), 0.0],  # cosine == sim
+        "other":         [0.0, 0.0, 1.0],
     }
     items = [_art("near-dup-high", 0.9), _art("near-dup-low", 0.6), _art("other", 0.7)]
     monkeypatch.setattr(pipeline, "embed", lambda titles: [vecs[t] for t in titles])
@@ -147,11 +153,11 @@ def test_dedupe_stays_strict_when_min_keep_is_met(monkeypatch):
     # Same vectors as above, but min_keep=2. Strict pass gives 2 items (≥ 2),
     # so the relaxed threshold must NOT be used and the lower-optimism dup is dropped.
     import math
-    sim = 0.89
+    sim = (config.DEDUPE_SIMILARITY + config.DEDUPE_SIMILARITY_RELAXED) / 2
     vecs = {
-        "near-dup-high": [1.0, 0.0],
-        "near-dup-low":  [sim, math.sqrt(1 - sim ** 2)],
-        "other":         [0.0, 1.0],
+        "near-dup-high": [1.0, 0.0, 0.0],
+        "near-dup-low":  [sim, math.sqrt(1 - sim ** 2), 0.0],
+        "other":         [0.0, 0.0, 1.0],
     }
     items = [_art("near-dup-high", 0.9), _art("near-dup-low", 0.6), _art("other", 0.7)]
     monkeypatch.setattr(pipeline, "embed", lambda titles: [vecs[t] for t in titles])
