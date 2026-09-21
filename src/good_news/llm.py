@@ -9,7 +9,7 @@ import json
 import re
 import sys
 from typing import Any, cast
-from openai import OpenAI
+from openai import APIConnectionError, OpenAI
 
 from . import config
 from .guardrails import (
@@ -26,6 +26,61 @@ from .models import Article, Verdict
 from .prompts import CRITERIA, DIGEST_PROMPT, VERDICT_SCHEMA
 
 client = OpenAI(base_url=config.BASE_URL, api_key="lm-studio")  # key can be anything
+
+
+class ServerUnavailable(RuntimeError):
+    """The inference server can't be reached, or isn't serving a model we need.
+
+    Deliberately distinct from "the model answered but gave us no usable
+    verdict": that is a content problem, it yields None, and the run carries on
+    without the article. This is a plumbing problem, and it makes every
+    remaining call in the run pointless.
+    """
+
+
+def _served_model_ids() -> list[str]:
+    """Ask the server what it has loaded. Raises ServerUnavailable if it can't."""
+    try:
+        return [m.id for m in client.models.list().data]
+    except Exception as e:
+        raise ServerUnavailable(
+            f"can't reach the inference server at {config.BASE_URL}: {e}"
+        ) from e
+
+
+def _is_served(wanted: str, served: list[str]) -> bool:
+    """Whether `wanted` names one of the `served` model ids.
+
+    LM Studio resolves a publisher-prefixed id against the bare one it reports
+    (we ask for 'unsloth/qwen3.6-35b-a3b', it serves 'qwen3.6-35b-a3b' and
+    answers anyway), so comparing the full strings would report a missing model
+    that actually works. Compare the part after the last slash.
+    """
+    def base(model_id: str) -> str:
+        return model_id.rsplit("/", 1)[-1].lower()
+
+    return base(wanted) in {base(s) for s in served}
+
+
+def preflight() -> None:
+    """Fail fast when the server can't serve this run.
+
+    Without this the failure is silent: classify() degrades to None on any
+    error and keep() reads None as "didn't clear the bar", so an unreachable
+    server produces the same empty briefing as a genuinely bleak news day. A
+    DHCP lease moved the PC on 2026-09-17 and cost five briefings before anyone
+    noticed. One call up front turns that silence into a message.
+    """
+    served = _served_model_ids()
+    missing = [
+        m for m in (config.CHAT_MODEL, config.EMBED_MODEL) if not _is_served(m, served)
+    ]
+    if missing:
+        raise ServerUnavailable(
+            f"{config.BASE_URL} is up but isn't serving {', '.join(missing)} "
+            f"(loaded: {', '.join(served) or 'nothing'}). "
+            "Load the model in LM Studio, or copy its exact id into config."
+        )
 
 
 def _model_family() -> str:
@@ -118,6 +173,10 @@ def classify(article: Article) -> Verdict | None:
             print(f"  ! classify failed: {why}", file=sys.stderr)
             return None
         return Verdict.from_json(json.loads(text))
+    except APIConnectionError as e:
+        # Never a verdict about this article -- the request didn't arrive. The
+        # caller decides whether one blip is survivable or the server is gone.
+        raise ServerUnavailable(f"can't reach {config.BASE_URL}: {e}") from e
     except Exception as e:
         print(f"  ! classify failed: {e}", file=sys.stderr)
         return None
