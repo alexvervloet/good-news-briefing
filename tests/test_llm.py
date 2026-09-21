@@ -252,3 +252,79 @@ def test_write_digest_survives_a_dead_embedding_model(monkeypatch, capsys):
     assert len(calls) == 1
     assert "https://example.com/trees" in out and "https://example.com/chair" in out
     assert "skipping the digest link check" in capsys.readouterr().err
+
+
+# --- preflight(): catch a dead server before the run, not after ------------
+# The bug this guards: a DHCP lease moved the PC on 2026-09-17, every classify
+# call got a connection error, and because classify() degrades to None the
+# pipeline reported five empty-but-successful briefings in a row.
+
+
+def install_fake_models(monkeypatch, ids=None, error=None):
+    """Point llm.client.models.list at a fake catalogue, or make it blow up."""
+    def _list():
+        if error is not None:
+            raise error
+        return SimpleNamespace(data=[SimpleNamespace(id=i) for i in ids or []])
+
+    monkeypatch.setattr(
+        llm, "client", SimpleNamespace(models=SimpleNamespace(list=_list))
+    )
+
+
+def test_preflight_passes_when_both_models_are_served(monkeypatch):
+    install_fake_models(monkeypatch, [llm.config.CHAT_MODEL, llm.config.EMBED_MODEL])
+    llm.preflight()  # no exception
+
+
+def test_preflight_accepts_the_bare_id_lm_studio_reports(monkeypatch):
+    # We ask for "unsloth/qwen3.6-35b-a3b"; LM Studio lists "qwen3.6-35b-a3b"
+    # and serves it happily. Comparing whole strings would fail a working setup.
+    monkeypatch.setattr(llm.config, "CHAT_MODEL", "unsloth/qwen3.6-35b-a3b")
+    monkeypatch.setattr(llm.config, "EMBED_MODEL", "text-embedding-qwen3")
+    install_fake_models(monkeypatch, ["qwen3.6-35b-a3b", "text-embedding-qwen3"])
+    llm.preflight()
+
+
+def test_preflight_raises_when_the_server_is_unreachable(monkeypatch):
+    install_fake_models(monkeypatch, error=OSError("connection refused"))
+    with pytest.raises(llm.ServerUnavailable, match="can't reach"):
+        llm.preflight()
+
+
+def test_preflight_raises_when_a_needed_model_is_not_loaded(monkeypatch):
+    # Server up, wrong models loaded: still a failed run, and the message has
+    # to say which model is missing or it sends you hunting the network again.
+    install_fake_models(monkeypatch, ["some-other-model"])
+    with pytest.raises(llm.ServerUnavailable) as e:
+        llm.preflight()
+    assert llm.config.CHAT_MODEL in str(e.value)
+    assert "some-other-model" in str(e.value)
+
+
+def test_classify_raises_rather_than_returning_none_when_unreachable(
+    monkeypatch, article
+):
+    # The heart of the fix: a request that never arrived is NOT a verdict of
+    # "not good enough". None would be indistinguishable from a dull article.
+    from openai import APIConnectionError
+
+    def down(**_kwargs):
+        raise APIConnectionError(request=SimpleNamespace())
+
+    monkeypatch.setattr(
+        llm, "client",
+        SimpleNamespace(
+            chat=SimpleNamespace(completions=SimpleNamespace(create=down))
+        ),
+    )
+    with pytest.raises(llm.ServerUnavailable):
+        llm.classify(article)
+
+
+def test_classify_still_returns_none_when_the_model_talks_nonsense(
+    monkeypatch, article
+):
+    # The other side of that line: the server answered, so the run carries on.
+    install_fake_client(monkeypatch, fake_chat(content="not json at all"))
+    assert llm.classify(article) is None
