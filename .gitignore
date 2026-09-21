@@ -1,5 +1,7 @@
-# Secrets / local settings
-.env
+# Secrets / local settings. Glob, not a literal: a stray .env.bak or
+# .env.local holds the same app password the real one does.
+.env*
+!.env.example
 
 # Python
 __pycache__/
