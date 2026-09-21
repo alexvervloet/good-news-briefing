@@ -585,3 +585,56 @@ as its own story.
   `MIN_PER_CATEGORY` relaxation exists to stop over-collapsing, and its effect
   here was to reinstate a duplicate that had been correctly removed. Two
   guardrails that can reverse each other need an order, not just thresholds.
+
+---
+
+## 2026-09-21 — The same "returns zero instead of raising" trap, three months later and one layer down
+
+**Context.** The 20:55 cron job stopped producing briefings. I only noticed
+because I went looking for the file. The last real briefing was
+`briefing-2026-09-16.md`, five days earlier.
+
+**Finding.** My router had handed the LM Studio PC a new DHCP lease, moving it
+from 192.168.1.106 to .107. `PC_HOST` in `.env` still pointed at the old
+address. Two details made this harder to see than it should have been. Another
+device had picked up the stale lease, so .106 still answered ping and only the
+port was closed, which ruled out the obvious "is the machine on" check. And the
+failure was completely silent: `classify()` caught every exception and returned
+`None`, `keep()` read `None` as "didn't clear the bar", and the run finished
+with "No good news cleared the bar. Try lowering OPTIMISM_THRESHOLD." and exit
+code 0. Counting runs in `cron.log`: runs 1-78 clean, runs 79-83 with 66, 61,
+66, 31 and 28 connection errors respectively, every one of them reported as a
+successful but empty evening.
+
+This is the exact lesson from 2026-06-19, the certifi/feedparser entry at the
+top of this file, recurring one layer down. I fixed it for the feeds and then
+wrote the identical bug into the model call.
+
+A second, quieter bug rode along with it. The loop called `store.mark_seen(a.link)`
+after `classify()` regardless of whether the call succeeded, so all 28 articles
+on the 21st were marked seen without any model ever judging them. Even after
+fixing the IP, those stories could never come back.
+
+**Action.** Four changes. A `ServerUnavailable` exception that means "the
+request never arrived", kept deliberately distinct from `None`, which still
+means "the model answered but said nothing usable". A `preflight()` that hits
+`/v1/models` before the feeds are touched and checks both the chat and
+embedding models are actually loaded, comparing on the part after the last
+slash because LM Studio serves `unsloth/qwen3.6-35b-a3b` under the bare id
+`qwen3.6-35b-a3b`. A tally in `run()` that tolerates individual blips but
+raises when every article went unjudged. And `mark_seen` moved into the success
+branch so an unjudged article stays unseen.
+
+**Result.** The failure that cost five briefings now takes 1.9 seconds and
+exits 1: `! run aborted: can't reach the inference server at
+http://192.168.1.106:1234/v1`. Cron logs a failure instead of a success. The
+old path fetched 294 articles and made 28 doomed model calls before reporting
+nothing was wrong.
+
+**Takeaway.** Catching a broad exception and returning a neutral value converts
+an outage into a plausible result, and a plausible result is invisible. The
+test is whether the failure and the legitimate empty case produce different
+output. Here they were byte-identical. Worth adding: when a fallback value has
+to exist, the caller needs the failure count too, because "no items passed" and
+"no items were judged" are different sentences and only one of them is an
+emergency.
