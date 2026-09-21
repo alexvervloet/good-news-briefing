@@ -249,6 +249,26 @@ crontab line for 6pm daily:
 0 18 * * * cd /path/to/good-news-briefing && .venv/bin/python good_news_briefing.py >> ~/good-news/cron.log 2>&1
 ```
 
+### When the model server isn't reachable
+
+A scheduled run checks the server before it touches the feeds, and stops in
+about a second if the chat or embedding model isn't being served:
+
+```
+! run aborted: can't reach the inference server at http://192.168.1.106:1234/v1
+```
+
+It exits 1, so `$?` and your cron log distinguish a broken run from a genuine
+"nothing cleared the bar" evening. That matters more than it sounds: before
+this check existed, a DHCP lease moved the server's IP and five nights of runs
+reported success while judging nothing (see `LEARNINGS.md`, 2026-09-21). If
+your server lives on a LAN address, give it a DHCP reservation so `PC_HOST`
+can't go stale.
+
+Individual dropped requests are survivable. The run only aborts when every
+article went unjudged, and an article the server never ruled on is left unseen
+so the next run reconsiders it.
+
 ## Privacy
 
 `.env` (your IP, email addresses, and app password) is gitignored and never
