@@ -11,7 +11,7 @@ from .guardrails import cosine
 from .models import Article, Verdict
 from .sources import fetch, fetch_article_text
 from .store import SeenStore
-from .llm import classify, embed, write_digest
+from .llm import ServerUnavailable, classify, embed, preflight, write_digest
 from .deliver import write_briefing, send_email
 
 
@@ -104,6 +104,10 @@ def run(
     show_verdicts: bool = False,
     send_mail: bool = False,
 ) -> None:
+    # Before the feeds, not after: a dead server makes the whole run moot, and
+    # failing in a second beats grinding through 300 articles to say nothing.
+    preflight()
+
     store = None if dry_run else SeenStore.open()
     per_feed = limit if limit is not None else (5 if dry_run else config.MAX_ENTRIES_PER_FEED)
 
@@ -123,6 +127,7 @@ def run(
         print(f"{len(fresh)} new since last run", file=sys.stderr)
 
     kept: list[Article] = []
+    unreachable = 0
     for a in fresh:
         # Reddit's RSS summary is just the submission blurb, so crawl the real
         # article and judge the model on that instead of the reddit post.
@@ -130,9 +135,21 @@ def run(
             body = fetch_article_text(a.link)
             if body:
                 a.summary = body
-        v = classify(a)
-        if store is not None:
-            store.mark_seen(a.link)
+        try:
+            v = classify(a)
+        except ServerUnavailable as e:
+            # Tolerate the blip here and let the tally after the loop decide:
+            # one dropped request shouldn't lose a briefing, and a server that
+            # is really gone will fail every remaining article anyway.
+            unreachable += 1
+            print(f"  ! classify failed: {e}", file=sys.stderr)
+            v = None
+        else:
+            # Only burn the link once the model actually ruled on it. Marking
+            # it after an unreachable server would retire an article nobody
+            # judged, and SeenStore would hide it from every future run.
+            if store is not None:
+                store.mark_seen(a.link)
         passed = keep(v)
         if show_verdicts and v is not None:
             _print_verdict(a, v, passed)
@@ -143,6 +160,21 @@ def run(
             kept.append(a)
     if store is not None:
         store.commit()
+
+    # The distinction this whole guard exists for: "nothing was good enough"
+    # and "nothing was judged" look identical downstream, so say which it was.
+    if fresh and unreachable == len(fresh):
+        raise ServerUnavailable(
+            f"all {len(fresh)} classify calls failed to reach {config.BASE_URL} "
+            "-- nothing was judged, so this is a failed run, not a quiet news day"
+        )
+    if unreachable:
+        print(
+            f"  ! {unreachable} of {len(fresh)} articles went unjudged "
+            "(server unreachable); they stay unseen for the next run",
+            file=sys.stderr,
+        )
+
     print(f"{len(kept)} passed the filter", file=sys.stderr)
 
     # Dedupe across the whole batch, before the category split. One event is
