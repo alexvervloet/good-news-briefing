@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 import argparse
+import sys
 
+from .llm import ServerUnavailable
 from .pipeline import run
 
 
@@ -38,12 +40,18 @@ def main(argv: list[str] | None = None) -> None:
     args = p.parse_args(argv)
     # Real runs email by default; dry runs only when --email is passed.
     send_mail = args.email if args.dry_run else not args.no_email
-    run(
-        dry_run=args.dry_run,
-        limit=args.limit,
-        show_verdicts=args.verdicts,
-        send_mail=send_mail,
-    )
+    try:
+        run(
+            dry_run=args.dry_run,
+            limit=args.limit,
+            show_verdicts=args.verdicts,
+            send_mail=send_mail,
+        )
+    except ServerUnavailable as e:
+        # Exit non-zero so cron, and anything reading $?, sees a failed run
+        # instead of a successful one that happened to produce no briefing.
+        print(f"\n! run aborted: {e}", file=sys.stderr)
+        raise SystemExit(1)
 
 
 if __name__ == "__main__":
