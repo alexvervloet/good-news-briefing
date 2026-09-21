@@ -91,6 +91,7 @@ def wire(monkeypatch):
         state["store"] = store
         return store
 
+    monkeypatch.setattr(pipeline, "preflight", lambda: None)
     monkeypatch.setattr(pipeline, "fetch", lambda per_feed: state["articles"])
     monkeypatch.setattr(pipeline, "classify", fake_classify)
     monkeypatch.setattr(pipeline, "embed", lambda titles: [[1.0] for _ in titles])
@@ -232,3 +233,75 @@ def test_run_leaves_a_short_briefing_alone(wire):
     # The cap must only ever trim; a normal evening is well under it.
     pipeline.run(dry_run=True)
     assert len(wire["digest_items"]) == 1
+
+
+# --- a dead server is a failed run, not a quiet news day -------------------
+# Sep 17-21 2026: the PC's IP changed, every classify call failed, and run()
+# printed "No good news cleared the bar" and exited 0 five nights running.
+
+
+def _unreachable(_article):
+    raise pipeline.ServerUnavailable("can't reach http://192.168.1.106:1234/v1")
+
+
+def test_run_aborts_when_every_article_goes_unjudged(wire, monkeypatch):
+    monkeypatch.setattr(pipeline, "classify", _unreachable)
+    with pytest.raises(pipeline.ServerUnavailable, match="failed run"):
+        pipeline.run(dry_run=True)
+
+
+def test_run_does_not_deliver_a_briefing_when_the_server_is_down(wire, monkeypatch):
+    # The silent-failure symptom: no email, no file, and crucially no pretence
+    # that the evening simply had no good news in it.
+    monkeypatch.setattr(pipeline, "classify", _unreachable)
+    with pytest.raises(pipeline.ServerUnavailable):
+        pipeline.run(dry_run=False, send_mail=True)
+    assert wire["written"] == []
+    assert wire["emailed"] == []
+
+
+def test_run_survives_a_single_dropped_request(wire, monkeypatch, capsys):
+    # One blip must not cost the briefing: the good story still gets through.
+    calls = {"n": 0}
+    real = wire["verdicts"]
+
+    def flaky(article):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise pipeline.ServerUnavailable("one blip")
+        return real.get(article.title)
+
+    wire["articles"].insert(0, _article("Dropped", "https://example.com/dropped"))
+    monkeypatch.setattr(pipeline, "classify", flaky)
+
+    pipeline.run(dry_run=True)
+
+    assert [a.title for a in wire["digest_items"]] == ["Good story"]
+    assert "1 of 3 articles went unjudged" in capsys.readouterr().err
+
+
+def test_run_keeps_an_unjudged_article_unseen_for_next_time(wire, monkeypatch):
+    # Marking it seen would retire an article no model ever ruled on, and
+    # SeenStore would hide it from every future run.
+    def flaky(article):
+        if article.title == "Good story":
+            raise pipeline.ServerUnavailable("dropped")
+        return wire["verdicts"].get(article.title)
+
+    monkeypatch.setattr(pipeline, "classify", flaky)
+    pipeline.run(dry_run=False, send_mail=False)
+
+    assert "https://example.com/good" not in wire["store"].marked
+    assert "https://example.com/bad" in wire["store"].marked
+
+
+def test_run_calls_preflight_before_touching_the_feeds(monkeypatch):
+    # Order matters: failing fast is the point. Fetching 300 articles first
+    # just to discover the server is down wastes minutes on every failed run.
+    order = []
+    monkeypatch.setattr(pipeline, "preflight", lambda: order.append("preflight"))
+    monkeypatch.setattr(
+        pipeline, "fetch", lambda per_feed: order.append("fetch") or []
+    )
+    pipeline.run(dry_run=True)
+    assert order == ["preflight", "fetch"]
